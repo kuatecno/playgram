@@ -1,0 +1,591 @@
+// Playgram v3.0 Database Schema
+// Complete schema for all 42 features
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// AUTHENTICATION & AUTHORIZATION
+// ============================================================================
+
+model Admin {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLogin     DateTime?
+
+  // Relations
+  tools                 Tool[]
+  manychatConfig        ManychatConfig?
+  tags                  Tag[]
+  webhookSubscriptions  WebhookSubscription[]
+  dataExports           DataExport[]
+  verificationApiKeys   VerificationApiKey[]
+  flowkickClients       FlowkickClient[]
+
+  @@index([email])
+}
+
+// ============================================================================
+// USER MANAGEMENT (Instagram/Manychat Users)
+// ============================================================================
+
+model User {
+  id              String    @id @default(cuid())
+  manychatId      String?   @unique
+  igUsername      String?
+  firstName       String?
+  lastName        String?
+  profilePicUrl   String?
+  followerCount   Int?
+  lastInteraction DateTime?
+  isSubscribed    Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  tags                Tag[]             @relation("UserTags")
+  customFieldValues   CustomFieldValue[]
+  qrCodes             QRCode[]
+  bookings            Booking[]
+  conversations       Conversation[]
+  interactionHistory  InteractionHistory[]
+  snapshots           UserSnapshot[]
+  instagramVerifications InstagramVerification[]
+
+  @@index([manychatId])
+  @@index([igUsername])
+  @@index([createdAt])
+}
+
+model Tag {
+  id          String   @id @default(cuid())
+  name        String
+  manychatId  String?  @unique
+  adminId     String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  admin Admin  @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  users User[] @relation("UserTags")
+
+  @@index([adminId])
+  @@index([name])
+}
+
+model CustomField {
+  id          String   @id @default(cuid())
+  name        String
+  fieldType   String   // text, number, date, boolean, json
+  description String?
+  manychatId  String?  @unique
+  createdAt   DateTime @default(now())
+
+  // Relations
+  values CustomFieldValue[]
+
+  @@index([name])
+}
+
+model CustomFieldValue {
+  id        String   @id @default(cuid())
+  userId    String
+  fieldId   String
+  value     String   // Stored as string, parsed by type
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  field CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fieldId])
+  @@index([userId])
+  @@index([fieldId])
+}
+
+// ============================================================================
+// TOOL MANAGEMENT SYSTEM
+// ============================================================================
+
+model Tool {
+  id              String   @id @default(cuid())
+  adminId         String
+  toolType        String   // qr, booking, ai, verification, custom
+  name            String
+  description     String?
+  settings        Json     // Tool-specific configuration
+  metadata        Json?    // Custom metadata
+  isActive        Boolean  @default(true)
+  manychatFlowId  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  admin         Admin          @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  qrCodes       QRCode[]
+  bookings      Booking[]
+  availabilities Availability[]
+  conversations  Conversation[]
+
+  @@index([adminId])
+  @@index([toolType])
+  @@index([isActive])
+}
+
+// ============================================================================
+// QR CODE SYSTEM
+// ============================================================================
+
+model QRCode {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  qrType     String    // promotion, validation, discount
+  userId     String?
+  toolId     String
+  metadata   Json?     // Custom data
+  expiresAt  DateTime?
+  scannedAt  DateTime?
+  scanCount  Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relations
+  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tool      Tool          @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  analytics QRAnalytics[]
+
+  @@index([code])
+  @@index([userId])
+  @@index([toolId])
+  @@index([qrType])
+  @@index([createdAt])
+}
+
+model QRAnalytics {
+  id         String   @id @default(cuid())
+  qrCodeId   String
+  event      String   // generated, scanned, validated
+  location   String?  // GPS coordinates (if available)
+  device     String?  // Device info
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+
+  // Relations
+  qrCode QRCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+
+  @@index([qrCodeId])
+  @@index([event])
+  @@index([timestamp])
+}
+
+// ============================================================================
+// BOOKING & SCHEDULING SYSTEM
+// ============================================================================
+
+model Availability {
+  id         String @id @default(cuid())
+  toolId     String
+  helperName String
+  dayOfWeek  Int    // 0-6 (Sunday-Saturday)
+  startTime  String // HH:MM format
+  endTime    String // HH:MM format
+  capacity   Int    @default(1)
+
+  // Relations
+  tool Tool @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@index([toolId])
+  @@index([dayOfWeek])
+}
+
+model Booking {
+  id          String   @id @default(cuid())
+  userId      String
+  toolId      String
+  helperName  String
+  bookingDate DateTime
+  startTime   String   // HH:MM format
+  endTime     String   // HH:MM format
+  status      String   // pending, confirmed, completed, cancelled
+  serviceType String?
+  notes       String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tool Tool @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([toolId])
+  @@index([status])
+  @@index([bookingDate])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// AI CHAT SYSTEM
+// ============================================================================
+
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String
+  toolId    String
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tool     Tool        @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  messages AIMessage[]
+
+  @@index([userId])
+  @@index([toolId])
+  @@index([createdAt])
+}
+
+model AIMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // user, assistant, system
+  content        String   @db.Text
+  tokensUsed     Int?
+  timestamp      DateTime @default(now())
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([timestamp])
+}
+
+// ============================================================================
+// INSTAGRAM VERIFICATION SYSTEM
+// ============================================================================
+
+model VerificationApiKey {
+  id         String   @id @default(cuid())
+  key        String   @unique // SHA-256 hashed
+  name       String   // Website name
+  adminId    String
+  webhookUrl String?
+  rateLimit  Int      @default(100) // Requests per hour
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  // Relations
+  admin         Admin                   @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  verifications InstagramVerification[]
+
+  @@index([adminId])
+  @@index([key])
+  @@index([isActive])
+}
+
+model InstagramVerification {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  apiKeyId   String
+  sessionId  String?   // External website session ID
+  status     String    // pending, verified, expired
+  igUsername String?
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  metadata   Json?     // Custom data from website
+  createdAt  DateTime  @default(now())
+
+  // Relations
+  apiKey VerificationApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  user   User?              @relation(fields: [igUsername], references: [igUsername])
+
+  @@index([code])
+  @@index([apiKeyId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// FLOWKICK SOCIAL MEDIA DATA SERVICE
+// ============================================================================
+
+model FlowkickClient {
+  id              String   @id @default(cuid())
+  name            String
+  apiKey          String   @unique // SHA-256 hashed
+  tier            String   // free, starter, pro, enterprise
+  requestLimit    Int      // Monthly limit
+  requestCount    Int      @default(0) // Current month usage
+  allowedPlatforms String[] // instagram, tiktok, google, etc.
+  isActive        Boolean  @default(true)
+  adminId         String
+  webhookUrl      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  admin    Admin       @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  apiUsage ApiUsage[]
+
+  @@index([adminId])
+  @@index([apiKey])
+  @@index([isActive])
+}
+
+model SocialMediaCache {
+  id           String   @id @default(cuid())
+  platform     String   // instagram, tiktok, google, etc.
+  identifier   String   // username, handle, place_id
+  dataType     String   // posts, reviews, videos
+  cachedData   Json
+  lastFetched  DateTime @default(now())
+  expiresAt    DateTime
+  fetchDuration Int?     // milliseconds
+  updatedAt    DateTime @updatedAt
+
+  @@unique([platform, identifier, dataType])
+  @@index([platform])
+  @@index([identifier])
+  @@index([expiresAt])
+}
+
+model ApifyDataSource {
+  id            String   @id @default(cuid())
+  platform      String   // instagram, tiktok, google
+  actorId       String   // Apify actor ID
+  defaultInput  Json     // Default scraper config
+  cacheDuration Int      // Hours
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([platform])
+  @@index([platform])
+  @@index([isActive])
+}
+
+model ApiUsage {
+  id           String   @id @default(cuid())
+  clientId     String
+  platform     String
+  endpoint     String
+  responseTime Int      // milliseconds
+  cacheHit     Boolean
+  statusCode   Int
+  timestamp    DateTime @default(now())
+
+  // Relations
+  client FlowkickClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([platform])
+  @@index([timestamp])
+}
+
+// ============================================================================
+// MANYCHAT INTEGRATION
+// ============================================================================
+
+model ManychatConfig {
+  id          String   @id @default(cuid())
+  adminId     String   @unique
+  apiToken    String   // Encrypted
+  pageToken   String?  // Encrypted
+  pageName    String?
+  isConnected Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+}
+
+model InteractionHistory {
+  id                String   @id @default(cuid())
+  userId            String
+  date              DateTime
+  messageCount      Int      @default(0)
+  commentCount      Int      @default(0)
+  storyReplyCount   Int      @default(0)
+  flowCompletions   Int      @default(0)
+  lastActivity      DateTime?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model UserSnapshot {
+  id            String   @id @default(cuid())
+  userId        String
+  snapshotDate  DateTime
+  data          Json     // Full user state
+  tags          String[] // Array of tag names
+  customFields  Json?    // Custom field values
+  followerCount Int?
+  createdAt     DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([snapshotDate])
+}
+
+model SyncLog {
+  id               String   @id @default(cuid())
+  syncType         String   // contact, tags, fields, all
+  status           String   // success, failed
+  recordsProcessed Int      @default(0)
+  errorMessage     String?  @db.Text
+  duration         Int?     // milliseconds
+  timestamp        DateTime @default(now())
+
+  @@index([syncType])
+  @@index([status])
+  @@index([timestamp])
+}
+
+// ============================================================================
+// WEBHOOK & CRM INTEGRATION
+// ============================================================================
+
+model WebhookSubscription {
+  id            String   @id @default(cuid())
+  adminId       String
+  url           String
+  events        String[] // Array of event types
+  secret        String   // For HMAC signing
+  customHeaders Json?    // Custom headers as JSON
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  admin      Admin             @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([adminId])
+  @@index([isActive])
+}
+
+model WebhookDelivery {
+  id             String    @id @default(cuid())
+  subscriptionId String
+  event          String    // Event type
+  payload        Json
+  status         String    // pending, success, failed
+  attempts       Int       @default(0)
+  lastAttemptAt  DateTime?
+  responseStatus Int?      // HTTP status code
+  responseBody   String?   @db.Text
+  errorMessage   String?   @db.Text
+  nextRetryAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  // Relations
+  subscription WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([event])
+  @@index([nextRetryAt])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// DATA EXPORT & COMPLIANCE
+// ============================================================================
+
+model DataExport {
+  id           String   @id @default(cuid())
+  adminId      String
+  exportType   String   // csv, json, pdf
+  filters      Json?    // Export filters applied
+  recordCount  Int
+  purpose      String?  @db.Text
+  downloadUrl  String?
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([exportType])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// INSTAGRAM POST MANAGEMENT
+// ============================================================================
+
+model PostCategory {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?
+  icon        String?
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  assignments PostCategoryAssignment[]
+
+  @@index([name])
+  @@index([isPublished])
+}
+
+model InstagramPost {
+  id         String   @id @default(cuid())
+  postId     String   @unique // Instagram media ID
+  caption    String?  @db.Text
+  mediaUrl   String
+  mediaType  String   // image, video, carousel
+  permalink  String
+  likes      Int?
+  comments   Int?
+  timestamp  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  categories PostCategoryAssignment[]
+
+  @@index([postId])
+  @@index([timestamp])
+}
+
+model PostCategoryAssignment {
+  id         String   @id @default(cuid())
+  postId     String
+  categoryId String
+  order      Int      @default(0)
+  assignedAt DateTime @default(now())
+
+  // Relations
+  post     InstagramPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category PostCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, categoryId])
+  @@index([postId])
+  @@index([categoryId])
+  @@index([order])
+}
