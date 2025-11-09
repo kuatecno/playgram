@@ -42,7 +42,7 @@ model Admin {
 model User {
   id              String    @id @default(cuid())
   manychatId      String?   @unique
-  igUsername      String?
+  igUsername      String?   @unique
   firstName       String?
   lastName        String?
   profilePicUrl   String?
