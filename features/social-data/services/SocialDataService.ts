@@ -6,9 +6,6 @@ import type {
   Platform,
   DataType,
   SocialMediaResponse,
-  InstagramPost,
-  TikTokVideo,
-  GoogleReview,
 } from '@/types/social-media'
 
 /**
@@ -244,7 +241,9 @@ export class SocialDataService {
 
     const platformStats = await db.socialMediaCache.groupBy({
       by: ['platform'],
-      _count: true,
+      _count: {
+        _all: true,
+      },
     })
 
     return {
@@ -252,8 +251,11 @@ export class SocialDataService {
       expired,
       active: total - expired,
       byPlatform: platformStats.reduce(
-        (acc, stat) => {
-          acc[stat.platform] = stat._count
+        (
+          acc: Record<string, number>,
+          stat: { platform: string; _count: { _all: number } }
+        ) => {
+          acc[stat.platform] = stat._count._all
           return acc
         },
         {} as Record<string, number>

@@ -1,14 +1,11 @@
 import { ApifyClient } from 'apify-client'
 import { db } from '@/lib/db'
-import { cache } from '@/lib/cache'
-import { TTL, APIFY_CONFIG } from '@/config/constants'
+import { APIFY_CONFIG } from '@/config/constants'
 import type {
   Platform,
-  DataType,
   InstagramPost,
   TikTokVideo,
   GoogleReview,
-  SocialMediaResponse,
   ApifyActorInput,
 } from '@/types/social-media'
 
