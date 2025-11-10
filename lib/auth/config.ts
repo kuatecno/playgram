@@ -1,5 +1,4 @@
 import NextAuth, { type DefaultSession } from 'next-auth'
-import { PrismaAdapter } from '@auth/prisma-adapter'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
@@ -29,8 +28,7 @@ const loginSchema = z.object({
 })
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  // @ts-expect-error - Type mismatch between @auth/core versions
-  adapter: PrismaAdapter(db),
+  // Don't use adapter with JWT strategy - we handle user storage manually
   session: {
     strategy: 'jwt',
   },
