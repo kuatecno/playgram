@@ -23,7 +23,7 @@ if (process.env.REDIS_URL) {
     })
 
     redis.on('connect', () => {
-      console.log('Redis connected')
+      // Redis connected successfully
     })
   } catch (error) {
     console.error('Failed to initialize Redis:', error)

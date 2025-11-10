@@ -7,7 +7,7 @@ import { qrCodeService } from '@/features/qr-codes/services/QRCodeService'
  * GET /api/v1/qr/stats
  * Get QR code statistics for authenticated admin
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const user = await requireAuth()
 

@@ -18,16 +18,17 @@ const updateTrainingSchema = z.object({
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
     const body = await request.json()
 
     // Validate input
     const validated = updateTrainingSchema.parse(body)
 
-    await aiChatService.updateTrainingData(params.id, user.id, validated)
+    await aiChatService.updateTrainingData(id, user.id, validated)
 
     return apiResponse.success({ message: 'Training data updated successfully' })
   } catch (error) {
@@ -46,13 +47,14 @@ export async function PATCH(
  * Delete training data
  */
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
 
-    await aiChatService.deleteTrainingData(params.id, user.id)
+    await aiChatService.deleteTrainingData(id, user.id)
 
     return apiResponse.success({ message: 'Training data deleted successfully' })
   } catch (error) {

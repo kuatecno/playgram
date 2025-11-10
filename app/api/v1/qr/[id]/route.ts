@@ -16,13 +16,14 @@ const updateQRSchema = z.object({
  * Get QR code details with scan history
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
 
-    const qrCode = await qrCodeService.getQRCodeDetails(params.id, user.id)
+    const qrCode = await qrCodeService.getQRCodeDetails(id, user.id)
 
     // Generate scan URL for the response
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'
@@ -46,16 +47,17 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
     const body = await request.json()
 
     // Validate input
     const validated = updateQRSchema.parse(body)
 
-    await qrCodeService.updateQRCode(params.id, user.id, validated)
+    await qrCodeService.updateQRCode(id, user.id, validated)
 
     return apiResponse.success({ message: 'QR code updated successfully' })
   } catch (error) {
@@ -74,13 +76,14 @@ export async function PATCH(
  * Delete QR code
  */
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
 
-    await qrCodeService.deleteQRCode(params.id, user.id)
+    await qrCodeService.deleteQRCode(id, user.id)
 
     return apiResponse.success({ message: 'QR code deleted successfully' })
   } catch (error) {

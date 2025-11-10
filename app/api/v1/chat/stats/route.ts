@@ -7,7 +7,7 @@ import { aiChatService } from '@/features/ai-chat/services/AIChatService'
  * GET /api/v1/chat/stats
  * Get AI chat statistics for authenticated admin
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const user = await requireAuth()
 

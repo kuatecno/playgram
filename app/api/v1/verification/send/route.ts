@@ -4,28 +4,26 @@ import { requireAuth } from '@/lib/auth/session'
 import { apiResponse } from '@/lib/utils/api-response'
 import { verificationService } from '@/features/verification/services/VerificationService'
 
-const sendVerificationSchema = z.object({
-  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format'),
-  userId: z.string().optional(),
-  purpose: z.string().optional(),
+const generateCodeSchema = z.object({
+  apiKeyId: z.string(),
+  sessionId: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
 })
 
 /**
  * POST /api/v1/verification/send
- * Send verification code to phone number
+ * Generate Instagram verification code
+ * Used by external websites to request verification codes
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth()
+    await requireAuth()
     const body = await request.json()
 
     // Validate input
-    const validated = sendVerificationSchema.parse(body)
+    const validated = generateCodeSchema.parse(body)
 
-    const result = await verificationService.sendVerification({
-      adminId: user.id,
-      ...validated,
-    })
+    const result = await verificationService.generateVerificationCode(validated)
 
     return apiResponse.success(result)
   } catch (error) {

@@ -26,10 +26,7 @@ export async function GET(request: NextRequest) {
     const user = await requireAuth()
     const { searchParams } = request.nextUrl
 
-    const type = searchParams.get('type') || undefined
-    const isActive = searchParams.get('isActive')
-      ? searchParams.get('isActive') === 'true'
-      : undefined
+    const qrType = searchParams.get('type') || undefined
     const limit = searchParams.get('limit')
       ? parseInt(searchParams.get('limit')!)
       : 50
@@ -38,8 +35,7 @@ export async function GET(request: NextRequest) {
       : 0
 
     const result = await qrCodeService.listQRCodes(user.id, {
-      type,
-      isActive,
+      qrType,
       limit,
       offset,
     })

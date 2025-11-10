@@ -29,6 +29,7 @@ const loginSchema = z.object({
 })
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // @ts-ignore - Type mismatch between @auth/core versions
   adapter: PrismaAdapter(db),
   session: {
     strategy: 'jwt',

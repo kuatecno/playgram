@@ -5,13 +5,14 @@ import { apiResponse } from '@/lib/utils/api-response'
 import { toolService } from '@/features/tools/services/ToolService'
 
 const createToolSchema = z.object({
+  toolType: z.string().min(1, 'Tool type is required'),
   name: z.string().min(1, 'Name is required'),
   description: z.string().optional(),
-  category: z.string().min(1, 'Category is required'),
+  category: z.string().optional(),
   icon: z.string().optional(),
   url: z.string().url().optional(),
-  apiEndpoint: z.string().url().optional(),
-  config: z.record(z.unknown()).optional(),
+  settings: z.record(z.unknown()).optional(),
+  manychatFlowId: z.string().optional(),
 })
 
 /**

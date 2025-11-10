@@ -7,7 +7,7 @@ import { bookingService } from '@/features/bookings/services/BookingService'
  * GET /api/v1/bookings/stats
  * Get booking statistics for authenticated admin
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const user = await requireAuth()
 

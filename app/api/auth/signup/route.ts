@@ -5,6 +5,9 @@ import { db } from '@/lib/db'
 import { apiResponse } from '@/lib/utils/api-response'
 import { ConflictError } from '@/lib/utils/errors'
 
+// Force Node.js runtime for bcryptjs compatibility
+export const runtime = 'nodejs'
+
 // Signup validation schema
 const signupSchema = z.object({
   email: z.string().email('Invalid email address'),

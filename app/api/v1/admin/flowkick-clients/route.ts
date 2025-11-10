@@ -17,7 +17,7 @@ const createClientSchema = z.object({
  * GET /api/v1/admin/flowkick-clients
  * List all Flowkick API clients
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const user = await requireAuth()
 

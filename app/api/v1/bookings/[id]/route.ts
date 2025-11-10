@@ -17,13 +17,14 @@ const updateBookingSchema = z.object({
  * Get booking details
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
 
-    const booking = await bookingService.getBooking(params.id, user.id)
+    const booking = await bookingService.getBooking(id, user.id)
 
     return apiResponse.success(booking)
   } catch (error) {
@@ -40,10 +41,11 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
     const body = await request.json()
 
     // Validate input
@@ -57,7 +59,7 @@ export async function PATCH(
         : undefined,
     }
 
-    await bookingService.updateBooking(params.id, user.id, updateData)
+    await bookingService.updateBooking(id, user.id, updateData)
 
     return apiResponse.success({ message: 'Booking updated successfully' })
   } catch (error) {
@@ -79,13 +81,14 @@ export async function PATCH(
  * Cancel booking
  */
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
 
-    await bookingService.cancelBooking(params.id, user.id)
+    await bookingService.cancelBooking(id, user.id)
 
     return apiResponse.success({ message: 'Booking cancelled successfully' })
   } catch (error) {

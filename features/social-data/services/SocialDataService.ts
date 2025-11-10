@@ -182,6 +182,9 @@ export class SocialDataService {
     )
 
     // Layer 3: Database
+    // Serialize data to ensure it's JSON compatible
+    const jsonData = JSON.parse(JSON.stringify(data))
+
     await db.socialMediaCache.upsert({
       where: {
         platform_identifier_dataType: {
@@ -194,13 +197,13 @@ export class SocialDataService {
         platform,
         identifier,
         dataType,
-        cachedData: data,
+        cachedData: jsonData,
         lastFetched: new Date(),
         expiresAt: new Date(Date.now() + ttlSeconds * 1000),
         fetchDuration,
       },
       update: {
-        cachedData: data,
+        cachedData: jsonData,
         lastFetched: new Date(),
         expiresAt: new Date(Date.now() + ttlSeconds * 1000),
         fetchDuration,

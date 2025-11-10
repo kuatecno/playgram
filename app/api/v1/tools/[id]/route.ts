@@ -20,13 +20,14 @@ const updateToolSchema = z.object({
  * Get tool details
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
 
-    const tool = await toolService.getTool(params.id, user.id)
+    const tool = await toolService.getTool(id, user.id)
 
     return apiResponse.success(tool)
   } catch (error) {
@@ -43,16 +44,17 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
     const body = await request.json()
 
     // Validate input
     const validated = updateToolSchema.parse(body)
 
-    await toolService.updateTool(params.id, user.id, validated)
+    await toolService.updateTool(id, user.id, validated)
 
     return apiResponse.success({ message: 'Tool updated successfully' })
   } catch (error) {
@@ -71,13 +73,14 @@ export async function PATCH(
  * Delete tool
  */
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
 
-    await toolService.deleteTool(params.id, user.id)
+    await toolService.deleteTool(id, user.id)
 
     return apiResponse.success({ message: 'Tool deleted successfully' })
   } catch (error) {

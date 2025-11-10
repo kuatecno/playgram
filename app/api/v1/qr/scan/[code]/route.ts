@@ -11,13 +11,14 @@ import { qrCodeService } from '@/features/qr-codes/services/QRCodeService'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
+    const { code } = await params
     const { searchParams } = request.nextUrl
     const userId = searchParams.get('userId') || undefined
 
-    const result = await qrCodeService.scanQRCode(params.code, userId)
+    const result = await qrCodeService.scanQRCode(code, userId)
 
     if (!result.valid) {
       return apiResponse.error(new Error(result.message), 400)
@@ -26,8 +27,8 @@ export async function GET(
     return apiResponse.success({
       valid: result.valid,
       message: result.message,
-      type: result.qrCode.type,
-      data: result.qrCode.data,
+      type: result.qrCode.qrType,
+      data: result.qrCode.metadata,
       scan: {
         id: result.scan.id,
         scannedAt: result.scan.scannedAt,

@@ -19,12 +19,11 @@ export interface GenerateQRCodeParams {
 export interface QRCodeScanResult {
   qrCode: {
     id: string
-    type: string
-    label: string
-    data: unknown
-    isActive: boolean
+    qrType: string
+    code: string
+    metadata: unknown
     scanCount: number
-    maxScans: number | null
+    expiresAt: Date | null
   }
   scan: {
     id: string
@@ -53,23 +52,37 @@ export class QRCodeService {
     // Create unique code
     const code = this.generateUniqueCode()
 
+    // Find a tool for this admin
+    const tool = await db.tool.findFirst({
+      where: {
+        adminId,
+        toolType: 'qr',
+        isActive: true,
+      },
+    })
+
+    if (!tool) {
+      throw new Error('No active QR tool found for this admin')
+    }
+
     // Create QR code record in database
+    // Serialize metadata to ensure JSON compatibility
+    const qrMetadata = JSON.parse(JSON.stringify({ label, ...data }))
+
     const qrCode = await db.qRCode.create({
       data: {
-        adminId,
-        type,
+        toolId: tool.id,
+        qrType: type,
         code,
-        label,
-        data,
-        isActive: true,
+        metadata: qrMetadata,
         scanCount: 0,
-        maxScans: data.maxScans || null,
+        expiresAt: data.validUntil || null,
       },
       select: {
         id: true,
-        type: true,
+        qrType: true,
         code: true,
-        label: true,
+        metadata: true,
         createdAt: true,
       },
     })
@@ -86,11 +99,22 @@ export class QRCodeService {
       margin: 2,
     })
 
+    // Track generation in analytics
+    await db.qRAnalytics.create({
+      data: {
+        qrCodeId: qrCode.id,
+        event: 'generated',
+        timestamp: new Date(),
+      },
+    })
+
+    const qrData = qrCode.metadata as any
+
     return {
       qrCode: {
         id: qrCode.id,
-        type: qrCode.type,
-        label: qrCode.label,
+        type: qrCode.qrType,
+        label: qrData?.label || '',
         qrCodeUrl: qrCodeDataUrl,
         scanUrl,
       },
@@ -103,19 +127,25 @@ export class QRCodeService {
    */
   async scanQRCode(
     code: string,
-    userId?: string
+    _userId?: string,
+    metadata?: {
+      location?: string
+      device?: string
+      ipAddress?: string
+      userAgent?: string
+    }
   ): Promise<QRCodeScanResult> {
     // Find QR code
     const qrCode = await db.qRCode.findUnique({
       where: { code },
       select: {
         id: true,
-        type: true,
-        label: true,
-        data: true,
-        isActive: true,
+        qrType: true,
+        code: true,
+        metadata: true,
         scanCount: true,
-        maxScans: true,
+        expiresAt: true,
+        scannedAt: true,
       },
     })
 
@@ -123,18 +153,21 @@ export class QRCodeService {
       throw new Error('QR code not found')
     }
 
-    // Check if QR code is active
-    if (!qrCode.isActive) {
+    const qrData = (qrCode.metadata as any) || {}
+    const maxScans = qrData.maxScans
+
+    // Check expiration
+    if (qrCode.expiresAt && qrCode.expiresAt < new Date()) {
       return {
         qrCode,
         scan: { id: '', scannedAt: new Date() },
         valid: false,
-        message: 'This QR code has been deactivated',
+        message: 'This QR code has expired',
       }
     }
 
     // Check if max scans reached
-    if (qrCode.maxScans && qrCode.scanCount >= qrCode.maxScans) {
+    if (maxScans && qrCode.scanCount >= maxScans) {
       return {
         qrCode,
         scan: { id: '', scannedAt: new Date() },
@@ -143,52 +176,45 @@ export class QRCodeService {
       }
     }
 
-    // Check expiration if validUntil is set
-    const data = qrCode.data as GenerateQRCodeParams['data']
-    if (data.validUntil) {
-      const validUntil = new Date(data.validUntil)
-      if (validUntil < new Date()) {
-        return {
-          qrCode,
-          scan: { id: '', scannedAt: new Date() },
-          valid: false,
-          message: 'This QR code has expired',
-        }
-      }
-    }
-
-    // Record scan
-    const scan = await db.qRCodeScan.create({
+    // Record scan in analytics
+    const scan = await db.qRAnalytics.create({
       data: {
         qrCodeId: qrCode.id,
-        userId,
-        scannedAt: new Date(),
+        event: 'scanned',
+        location: metadata?.location,
+        device: metadata?.device,
+        ipAddress: metadata?.ipAddress,
+        userAgent: metadata?.userAgent,
+        timestamp: new Date(),
       },
       select: {
         id: true,
-        scannedAt: true,
+        timestamp: true,
       },
     })
 
-    // Increment scan count
+    // Increment scan count and update scanned time
     await db.qRCode.update({
       where: { id: qrCode.id },
-      data: { scanCount: { increment: 1 } },
+      data: {
+        scanCount: { increment: 1 },
+        scannedAt: new Date(),
+      },
     })
 
     // Return success result based on type
     let message = 'QR code scanned successfully'
-    if (qrCode.type === QR_TYPES.DISCOUNT && data.discountAmount) {
-      message = `Discount applied: ${data.discountType === 'percentage' ? `${data.discountAmount}%` : `$${data.discountAmount}`} off`
-    } else if (qrCode.type === QR_TYPES.PROMOTION && data.message) {
-      message = data.message
-    } else if (qrCode.type === QR_TYPES.VALIDATION) {
+    if (qrCode.qrType === QR_TYPES.DISCOUNT && qrData.discountAmount) {
+      message = `Discount applied: ${qrData.discountType === 'percentage' ? `${qrData.discountAmount}%` : `$${qrData.discountAmount}`} off`
+    } else if (qrCode.qrType === QR_TYPES.PROMOTION && qrData.message) {
+      message = qrData.message
+    } else if (qrCode.qrType === QR_TYPES.VALIDATION) {
       message = 'Validation successful'
     }
 
     return {
       qrCode,
-      scan,
+      scan: { id: scan.id, scannedAt: scan.timestamp },
       valid: true,
       message,
     }
@@ -199,22 +225,19 @@ export class QRCodeService {
    */
   async getQRCodeStats(adminId: string) {
     const total = await db.qRCode.count({
-      where: { adminId },
+      where: { tool: { adminId } },
     })
 
-    const active = await db.qRCode.count({
-      where: { adminId, isActive: true },
-    })
-
-    const totalScans = await db.qRCodeScan.count({
+    const totalScans = await db.qRAnalytics.count({
       where: {
-        qrCode: { adminId },
+        event: 'scanned',
+        qrCode: { tool: { adminId } },
       },
     })
 
     const byType = await db.qRCode.groupBy({
-      by: ['type'],
-      where: { adminId },
+      by: ['qrType'],
+      where: { tool: { adminId } },
       _count: true,
       _sum: {
         scanCount: true,
@@ -225,21 +248,20 @@ export class QRCodeService {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    const recentScans = await db.qRCodeScan.count({
+    const recentScans = await db.qRAnalytics.count({
       where: {
-        qrCode: { adminId },
-        scannedAt: { gte: thirtyDaysAgo },
+        event: 'scanned',
+        qrCode: { tool: { adminId } },
+        timestamp: { gte: thirtyDaysAgo },
       },
     })
 
     return {
       total,
-      active,
-      inactive: total - active,
       totalScans,
       recentScans,
       byType: byType.map((stat) => ({
-        type: stat.type,
+        type: stat.qrType,
         count: stat._count,
         scans: stat._sum.scanCount || 0,
       })),
@@ -250,15 +272,13 @@ export class QRCodeService {
    * List QR codes for admin
    */
   async listQRCodes(adminId: string, options?: {
-    type?: string
-    isActive?: boolean
+    qrType?: string
     limit?: number
     offset?: number
   }) {
     const where = {
-      adminId,
-      ...(options?.type && { type: options.type }),
-      ...(options?.isActive !== undefined && { isActive: options.isActive }),
+      tool: { adminId },
+      ...(options?.qrType && { qrType: options.qrType }),
     }
 
     const [qrCodes, total] = await Promise.all([
@@ -266,13 +286,12 @@ export class QRCodeService {
         where,
         select: {
           id: true,
-          type: true,
+          qrType: true,
           code: true,
-          label: true,
-          data: true,
-          isActive: true,
+          metadata: true,
           scanCount: true,
-          maxScans: true,
+          expiresAt: true,
+          scannedAt: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -284,7 +303,10 @@ export class QRCodeService {
     ])
 
     return {
-      qrCodes,
+      qrCodes: qrCodes.map((qr) => ({
+        ...qr,
+        label: (qr.metadata as any)?.label || '',
+      })),
       total,
       limit: options?.limit || 50,
       offset: options?.offset || 0,
@@ -298,24 +320,12 @@ export class QRCodeService {
     const qrCode = await db.qRCode.findFirst({
       where: {
         id: qrCodeId,
-        adminId,
+        tool: { adminId },
       },
       include: {
-        scans: {
-          orderBy: { scannedAt: 'desc' },
+        analytics: {
+          orderBy: { timestamp: 'desc' },
           take: 100,
-          select: {
-            id: true,
-            userId: true,
-            scannedAt: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                phone: true,
-              },
-            },
-          },
         },
       },
     })
@@ -335,22 +345,42 @@ export class QRCodeService {
     adminId: string,
     data: {
       label?: string
-      isActive?: boolean
-      maxScans?: number | null
-      data?: Record<string, unknown>
+      expiresAt?: Date | null
+      metadata?: Record<string, unknown>
     }
   ) {
-    const qrCode = await db.qRCode.updateMany({
+    // Get existing QR code to merge metadata
+    const existing = await db.qRCode.findFirst({
       where: {
         id: qrCodeId,
-        adminId,
+        tool: { adminId },
       },
-      data,
     })
 
-    if (qrCode.count === 0) {
+    if (!existing) {
       throw new Error('QR code not found')
     }
+
+    const existingMeta = (existing.metadata as any) || {}
+
+    const updateData: any = {}
+
+    if (data.expiresAt !== undefined) {
+      updateData.expiresAt = data.expiresAt
+    }
+
+    if (data.label || data.metadata) {
+      updateData.metadata = {
+        ...existingMeta,
+        ...(data.label && { label: data.label }),
+        ...(data.metadata || {}),
+      }
+    }
+
+    await db.qRCode.update({
+      where: { id: qrCodeId },
+      data: updateData,
+    })
 
     return { success: true }
   }
@@ -359,14 +389,14 @@ export class QRCodeService {
    * Delete QR code
    */
   async deleteQRCode(qrCodeId: string, adminId: string) {
-    const qrCode = await db.qRCode.deleteMany({
+    const deleted = await db.qRCode.deleteMany({
       where: {
         id: qrCodeId,
-        adminId,
+        tool: { adminId },
       },
     })
 
-    if (qrCode.count === 0) {
+    if (deleted.count === 0) {
       throw new Error('QR code not found')
     }
 

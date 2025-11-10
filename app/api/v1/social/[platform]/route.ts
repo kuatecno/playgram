@@ -8,14 +8,16 @@ const SUPPORTED_PLATFORMS: Platform[] = ['instagram', 'tiktok', 'google']
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { platform: string } }
+  { params }: { params: Promise<{ platform: string }> }
 ) {
   const startTime = Date.now()
   let clientId: string | undefined
   let cacheHit = false
+  let platform: Platform | undefined
 
   try {
-    const platform = params.platform as Platform
+    const { platform: platformParam } = await params
+    platform = platformParam as Platform
 
     // Validate platform
     if (!SUPPORTED_PLATFORMS.includes(platform)) {
@@ -98,11 +100,11 @@ export async function GET(
     const responseTime = Date.now() - startTime
 
     // Track failed request
-    if (clientId) {
+    if (clientId && platform) {
       await trackApiUsage(
         clientId,
-        params.platform,
-        `/api/v1/social/${params.platform}`,
+        platform,
+        `/api/v1/social/${platform}`,
         responseTime,
         cacheHit,
         error instanceof Error && 'statusCode' in error

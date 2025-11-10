@@ -8,13 +8,14 @@ import { aiChatService } from '@/features/ai-chat/services/AIChatService'
  * Get conversation details with full message history
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
 
-    const conversation = await aiChatService.getConversation(params.id, user.id)
+    const conversation = await aiChatService.getConversation(id, user.id)
 
     return apiResponse.success(conversation)
   } catch (error) {

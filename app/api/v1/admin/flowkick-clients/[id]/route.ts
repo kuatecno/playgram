@@ -16,16 +16,17 @@ const updateClientSchema = z.object({
  * Get client details with usage stats
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
 
     // Get client
     const client = await db.flowkickClient.findFirst({
       where: {
-        id: params.id,
+        id: id,
         adminId: user.id,
       },
       select: {
@@ -49,7 +50,7 @@ export async function GET(
     // Get usage stats
     const usageStats = await db.apiUsage.groupBy({
       by: ['platform'],
-      where: { clientId: params.id },
+      where: { clientId: id },
       _count: true,
       _avg: {
         responseTime: true,
@@ -58,12 +59,12 @@ export async function GET(
 
     // Get cache hit rate
     const totalRequests = await db.apiUsage.count({
-      where: { clientId: params.id },
+      where: { clientId: id },
     })
 
     const cacheHits = await db.apiUsage.count({
       where: {
-        clientId: params.id,
+        clientId: id,
         cacheHit: true,
       },
     })
@@ -77,7 +78,7 @@ export async function GET(
     const recentUsage = await db.apiUsage.groupBy({
       by: ['timestamp'],
       where: {
-        clientId: params.id,
+        clientId: id,
         timestamp: { gte: sevenDaysAgo },
       },
       _count: true,
@@ -86,7 +87,7 @@ export async function GET(
     return apiResponse.success({
       client,
       stats: {
-        usageByPlatform: usageStats.map((stat) => ({
+        usageByPlatform: usageStats.map((stat: any) => ({
           platform: stat.platform,
           requests: stat._count,
           avgResponseTime: Math.round(stat._avg.responseTime || 0),
@@ -112,10 +113,11 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
     const body = await request.json()
 
     // Validate input
@@ -124,7 +126,7 @@ export async function PATCH(
     // Update client
     const client = await db.flowkickClient.updateMany({
       where: {
-        id: params.id,
+        id: id,
         adminId: user.id,
       },
       data: validated,
@@ -148,15 +150,16 @@ export async function PATCH(
  * Delete a client
  */
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAuth()
+    const { id } = await params
 
     const deleted = await db.flowkickClient.deleteMany({
       where: {
-        id: params.id,
+        id: id,
         adminId: user.id,
       },
     })

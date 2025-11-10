@@ -37,8 +37,8 @@ export class BookingService {
       adminId,
       userId,
       name,
-      email,
-      phone,
+      email: _email,
+      phone: _phone,
       serviceType,
       scheduledAt,
       duration,
@@ -57,28 +57,47 @@ export class BookingService {
       throw new Error('This time slot is not available')
     }
 
+    // Find a tool for this admin
+    const tool = await db.tool.findFirst({
+      where: {
+        adminId,
+        toolType: 'booking',
+        isActive: true,
+      },
+    })
+
+    if (!tool) {
+      throw new Error('No active booking tool found for this admin')
+    }
+
+    // Convert scheduledAt and duration to bookingDate, startTime, endTime
+    const bookingDate = new Date(scheduledAt)
+    const startTime = `${bookingDate.getHours().toString().padStart(2, '0')}:${bookingDate.getMinutes().toString().padStart(2, '0')}`
+    const endDate = new Date(scheduledAt)
+    endDate.setMinutes(endDate.getMinutes() + duration)
+    const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`
+
     // Create booking
     const booking = await db.booking.create({
       data: {
-        adminId,
-        userId,
-        name,
-        email,
-        phone,
+        toolId: tool.id,
+        userId: userId || '',
+        helperName: name,
+        bookingDate,
+        startTime,
+        endTime,
         serviceType,
-        scheduledAt,
-        duration,
         status: BOOKING_STATUS.PENDING,
         notes,
-        metadata,
+        metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : undefined,
       },
       include: {
         user: {
           select: {
             id: true,
-            name: true,
-            phone: true,
-            email: true,
+            firstName: true,
+            lastName: true,
+            igUsername: true,
           },
         },
       },
@@ -98,15 +117,24 @@ export class BookingService {
     // If updating scheduled time, check availability
     if (params.scheduledAt) {
       const booking = await db.booking.findFirst({
-        where: { id: bookingId, adminId },
-        select: { duration: true },
+        where: { 
+          id: bookingId,
+          tool: {
+            adminId,
+          },
+        },
+        select: { startTime: true, endTime: true },
       })
 
       if (!booking) {
         throw new Error('Booking not found')
       }
 
-      const duration = params.duration || booking.duration
+      // Calculate duration from time strings
+      const [startHour, startMin] = booking.startTime.split(':').map(Number)
+      const [endHour, endMin] = booking.endTime.split(':').map(Number)
+      const existingDuration = (endHour * 60 + endMin) - (startHour * 60 + startMin)
+      const duration = params.duration || existingDuration
       const isAvailable = await this.isSlotAvailable(
         adminId,
         params.scheduledAt,
@@ -120,12 +148,19 @@ export class BookingService {
     }
 
     // Update booking
+    const updateData = {
+      ...params,
+      metadata: params.metadata ? JSON.parse(JSON.stringify(params.metadata)) : undefined,
+    }
+    
     const updated = await db.booking.updateMany({
       where: {
         id: bookingId,
-        adminId,
+        tool: {
+          adminId,
+        },
       },
-      data: params,
+      data: updateData,
     })
 
     if (updated.count === 0) {
@@ -142,11 +177,12 @@ export class BookingService {
     const updated = await db.booking.updateMany({
       where: {
         id: bookingId,
-        adminId,
+        tool: {
+          adminId,
+        },
       },
       data: {
         status: BOOKING_STATUS.CANCELLED,
-        cancelledAt: new Date(),
       },
     })
 
@@ -164,15 +200,17 @@ export class BookingService {
     const booking = await db.booking.findFirst({
       where: {
         id: bookingId,
-        adminId,
+        tool: {
+          adminId,
+        },
       },
       include: {
         user: {
           select: {
             id: true,
-            name: true,
-            phone: true,
-            email: true,
+            firstName: true,
+            lastName: true,
+            igUsername: true,
           },
         },
       },
@@ -200,7 +238,7 @@ export class BookingService {
       offset?: number
     }
   ) {
-    const where: any = { adminId }
+    const where: any = { tool: { adminId } }
 
     if (options?.status) {
       where.status = options.status
@@ -231,13 +269,13 @@ export class BookingService {
           user: {
             select: {
               id: true,
-              name: true,
-              phone: true,
-              email: true,
+              firstName: true,
+              lastName: true,
+              igUsername: true,
             },
           },
         },
-        orderBy: { scheduledAt: 'asc' },
+        orderBy: { bookingDate: 'asc' },
         take: options?.limit || 50,
         skip: options?.offset || 0,
       }),
@@ -262,13 +300,13 @@ export class BookingService {
 
     const [total, thisMonth, byStatus, byServiceType] = await Promise.all([
       // Total bookings
-      db.booking.count({ where: { adminId } }),
+      db.booking.count({ where: { tool: { adminId } } }),
 
       // This month
       db.booking.count({
         where: {
-          adminId,
-          scheduledAt: {
+          tool: { adminId },
+          bookingDate: {
             gte: startOfMonth,
             lte: endOfMonth,
           },
@@ -278,14 +316,14 @@ export class BookingService {
       // By status
       db.booking.groupBy({
         by: ['status'],
-        where: { adminId },
+        where: { tool: { adminId } },
         _count: true,
       }),
 
       // By service type
       db.booking.groupBy({
         by: ['serviceType'],
-        where: { adminId },
+        where: { tool: { adminId } },
         _count: true,
       }),
     ])
@@ -293,11 +331,11 @@ export class BookingService {
     return {
       total,
       thisMonth,
-      byStatus: byStatus.map((stat) => ({
+      byStatus: byStatus.map((stat: any) => ({
         status: stat.status,
         count: stat._count,
       })),
-      byServiceType: byServiceType.map((stat) => ({
+      byServiceType: byServiceType.map((stat: any) => ({
         serviceType: stat.serviceType,
         count: stat._count,
       })),
@@ -330,8 +368,8 @@ export class BookingService {
 
     const bookings = await db.booking.findMany({
       where: {
-        adminId,
-        scheduledAt: {
+        tool: { adminId },
+        bookingDate: {
           gte: startOfDay,
           lte: endOfDay,
         },
@@ -340,8 +378,9 @@ export class BookingService {
         },
       },
       select: {
-        scheduledAt: true,
-        duration: true,
+        bookingDate: true,
+        startTime: true,
+        endTime: true,
       },
     })
 
@@ -358,10 +397,16 @@ export class BookingService {
         slotEnd.setMinutes(slotEnd.getMinutes() + duration)
 
         // Check if this slot conflicts with any existing booking
-        const hasConflict = bookings.some((booking) => {
-          const bookingStart = new Date(booking.scheduledAt)
-          const bookingEnd = new Date(bookingStart)
-          bookingEnd.setMinutes(bookingEnd.getMinutes() + booking.duration)
+        const hasConflict = bookings.some((booking: any) => {
+          // Parse start and end times
+          const [startHour, startMin] = booking.startTime.split(':').map(Number)
+          const [endHour, endMin] = booking.endTime.split(':').map(Number)
+          
+          const bookingStart = new Date(booking.bookingDate)
+          bookingStart.setHours(startHour, startMin, 0, 0)
+          
+          const bookingEnd = new Date(booking.bookingDate)
+          bookingEnd.setHours(endHour, endMin, 0, 0)
 
           // Check overlap
           return (
@@ -395,7 +440,7 @@ export class BookingService {
     slotEnd.setMinutes(slotEnd.getMinutes() + duration)
 
     const where: any = {
-      adminId,
+      tool: { adminId },
       status: {
         in: [BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED],
       },
@@ -409,16 +454,23 @@ export class BookingService {
     const conflicts = await db.booking.findMany({
       where,
       select: {
-        scheduledAt: true,
-        duration: true,
+        bookingDate: true,
+        startTime: true,
+        endTime: true,
       },
     })
 
     // Check for overlaps
-    const hasConflict = conflicts.some((booking) => {
-      const bookingStart = new Date(booking.scheduledAt)
-      const bookingEnd = new Date(bookingStart)
-      bookingEnd.setMinutes(bookingEnd.getMinutes() + booking.duration)
+    const hasConflict = conflicts.some((booking: any) => {
+      // Parse start and end times
+      const [startHour, startMin] = booking.startTime.split(':').map(Number)
+      const [endHour, endMin] = booking.endTime.split(':').map(Number)
+      
+      const bookingStart = new Date(booking.bookingDate)
+      bookingStart.setHours(startHour, startMin, 0, 0)
+      
+      const bookingEnd = new Date(booking.bookingDate)
+      bookingEnd.setHours(endHour, endMin, 0, 0)
 
       // Check overlap
       return (
@@ -439,8 +491,8 @@ export class BookingService {
 
     const bookings = await db.booking.findMany({
       where: {
-        adminId,
-        scheduledAt: { gte: now },
+        tool: { adminId },
+        bookingDate: { gte: now },
         status: {
           in: [BOOKING_STATUS.PENDING, BOOKING_STATUS.CONFIRMED],
         },
@@ -449,13 +501,13 @@ export class BookingService {
         user: {
           select: {
             id: true,
-            name: true,
-            phone: true,
-            email: true,
+            firstName: true,
+            lastName: true,
+            igUsername: true,
           },
         },
       },
-      orderBy: { scheduledAt: 'asc' },
+      orderBy: { bookingDate: 'asc' },
       take: limit,
     })
 
