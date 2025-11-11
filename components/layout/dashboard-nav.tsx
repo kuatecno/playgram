@@ -31,9 +31,9 @@ const navigation = [
     name: 'Engagement',
     icon: Target,
     children: [
-      { name: 'QR Codes', href: '/qr-codes', icon: QrCode },
-      { name: 'Bookings', href: '/bookings', icon: Calendar },
-      { name: 'AI Chat', href: '/ai-chat', icon: MessageSquare },
+      { name: 'QR Codes', href: '/engagement/qr-codes', icon: QrCode },
+      { name: 'Bookings', href: '/engagement/bookings', icon: Calendar },
+      { name: 'AI Chat', href: '/engagement/ai-chat', icon: MessageSquare },
     ],
   },
   { name: 'Social', href: '/social', icon: Smartphone },
