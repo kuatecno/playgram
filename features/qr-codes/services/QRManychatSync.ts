@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { getQRFieldMappings, extractQRCodeData, type QRFieldMappingConfig } from './QRFieldMapping'
+import { getQRFieldMappings, extractQRCodeData } from './QRFieldMapping'
 import { manychatService } from '@/features/manychat/services/ManychatService'
 
 export interface SyncResult {

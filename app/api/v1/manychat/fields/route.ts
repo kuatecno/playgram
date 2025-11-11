@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/session'
 import { manychatService } from '@/features/manychat/services/ManychatService'
 

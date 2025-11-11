@@ -105,7 +105,7 @@ export function resolveQRCodeFormat(
   resolved = resolved.replace(/\{\{date\}\}/gi, dateStr)
 
   // Replace random string placeholders: {{random}} or {{random:6}}
-  resolved = resolved.replace(/\{\{random(?::(\d+))?\}\}/gi, (match, lengthStr) => {
+  resolved = resolved.replace(/\{\{random(?::(\d+))?\}\}/gi, (_match, lengthStr) => {
     const length = lengthStr ? parseInt(lengthStr) : 6
     return generateRandomString(length)
   })
