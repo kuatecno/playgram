@@ -463,10 +463,10 @@ export default function ManychatSettingsPage() {
           <ol className="space-y-3 list-decimal list-inside text-sm text-muted-foreground">
             <li>Log in to your Manychat account</li>
             <li>Go to Settings → API in the left sidebar</li>
-            <li>Click "Generate new token" or copy your existing token</li>
+            <li>Click &quot;Generate new token&quot; or copy your existing token</li>
             <li>Paste the token in the field above</li>
-            <li>Click "Test Connection" to verify</li>
-            <li>Click "Save & Connect" to complete the setup</li>
+            <li>Click &quot;Test Connection&quot; to verify</li>
+            <li>Click &quot;Save & Connect&quot; to complete the setup</li>
           </ol>
 
           <div className="mt-6 p-4 bg-muted rounded-lg">
