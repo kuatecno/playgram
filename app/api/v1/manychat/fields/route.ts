@@ -6,7 +6,7 @@ import { manychatService } from '@/features/manychat/services/ManychatService'
  * GET /api/v1/manychat/fields
  * Get list of Manychat custom fields
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const user = await requireAuth()
 
