@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     const user = await requireAuth()
     const { searchParams } = request.nextUrl
 
+    const toolType = searchParams.get('toolType') || undefined
     const category = searchParams.get('category') || undefined
     const isActive = searchParams.get('isActive')
       ? searchParams.get('isActive') === 'true'
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
       : 0
 
     const result = await toolService.listTools(user.id, {
+      toolType,
       category,
       isActive,
       limit,

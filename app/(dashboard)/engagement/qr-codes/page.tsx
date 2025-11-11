@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Download, Trash2, Power, QrCode as QrCodeIcon } from 'lucide-react'
+import { Plus, Download, Trash2, Power, QrCode as QrCodeIcon, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -59,6 +60,7 @@ interface QRCodeStats {
 }
 
 export default function QRCodesPage() {
+  const router = useRouter()
   const [qrCodes, setQRCodes] = useState<QRCode[]>([])
   const [stats, setStats] = useState<QRCodeStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -288,14 +290,19 @@ export default function QRCodesPage() {
             Generate and manage QR codes for promotions, discounts, and validation
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setGeneratedQR(null)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create QR Code
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[525px]">
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.push('/engagement/qr-codes/settings')}>
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Button>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setGeneratedQR(null)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create QR Code
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[525px]">
             {generatedQR ? (
               // Show generated QR code
               <div className="space-y-4">
@@ -459,8 +466,9 @@ export default function QRCodesPage() {
                 </DialogFooter>
               </form>
             )}
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats Grid */}

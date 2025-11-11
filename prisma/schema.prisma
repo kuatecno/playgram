@@ -62,6 +62,7 @@ model User {
   interactionHistory  InteractionHistory[]
   snapshots           UserSnapshot[]
   instagramVerifications InstagramVerification[]
+  qrSyncLogs          QRSyncLog[]
 
   @@index([manychatId])
   @@index([igUsername])
@@ -163,6 +164,7 @@ model QRCode {
   user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   tool      Tool          @relation(fields: [toolId], references: [id], onDelete: Cascade)
   analytics QRAnalytics[]
+  syncLogs  QRSyncLog[]
 
   @@index([code])
   @@index([userId])
@@ -186,6 +188,27 @@ model QRAnalytics {
 
   @@index([qrCodeId])
   @@index([event])
+  @@index([timestamp])
+}
+
+model QRSyncLog {
+  id           String   @id @default(cuid())
+  qrCodeId     String
+  userId       String
+  trigger      String   // scan, validation
+  success      Boolean
+  syncedFields Int      @default(0)
+  errors       String?  @db.Text
+  timestamp    DateTime @default(now())
+
+  // Relations
+  qrCode QRCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([qrCodeId])
+  @@index([userId])
+  @@index([trigger])
+  @@index([success])
   @@index([timestamp])
 }
 

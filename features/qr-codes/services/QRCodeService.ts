@@ -1,11 +1,22 @@
 import QRCode from 'qrcode'
 import { db } from '@/lib/db'
 import { QR_TYPES } from '@/config/constants'
+import { resolveQRCodeFormat, fetchUserDataForQR } from './QRFormatResolver'
+import { syncQRDataToManychat } from './QRManychatSync'
+
+export interface QRAppearanceSettings {
+  width?: number
+  margin?: number
+  errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H'
+  darkColor?: string
+  lightColor?: string
+}
 
 export interface GenerateQRCodeParams {
   adminId: string
   type: 'promotion' | 'validation' | 'discount'
   label: string
+  userId?: string // Optional: for personalized QR codes
   data: {
     message?: string
     discountAmount?: number
@@ -47,10 +58,7 @@ export class QRCodeService {
     }
     qrCodeDataUrl: string
   }> {
-    const { adminId, type, label, data } = params
-
-    // Create unique code
-    const code = this.generateUniqueCode()
+    const { adminId, type, label, data, userId } = params
 
     // Find or create a tool for this admin
     let tool = await db.tool.findFirst({
@@ -73,6 +81,33 @@ export class QRCodeService {
           isActive: true,
         },
       })
+    }
+
+    // Generate QR code based on tool settings
+    let code: string
+
+    try {
+      const settings = typeof tool.settings === 'string'
+        ? JSON.parse(tool.settings)
+        : tool.settings || {}
+
+      const qrFormat = settings.qrFormat || settings.qrCodeFormat
+
+      // If custom format is defined and userId is provided, use format resolver
+      if (qrFormat && userId) {
+        const userData = await fetchUserDataForQR(userId)
+        userData.metadata = data.metadata
+        code = resolveQRCodeFormat(qrFormat, userData)
+      } else if (qrFormat) {
+        // Use format without user data (replace with defaults)
+        code = resolveQRCodeFormat(qrFormat, { metadata: data.metadata })
+      } else {
+        // Fall back to simple random code
+        code = this.generateUniqueCode()
+      }
+    } catch (error) {
+      console.error('Error resolving QR format, using default:', error)
+      code = this.generateUniqueCode()
     }
 
     // Create QR code record in database
@@ -101,12 +136,23 @@ export class QRCodeService {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'
     const scanUrl = `${baseUrl}/api/v1/qr/scan/${qrCode.code}`
 
-    // Generate QR code image as data URL
+    // Get QR appearance settings from tool config
+    const settings = typeof tool.settings === 'string'
+      ? JSON.parse(tool.settings)
+      : tool.settings || {}
+
+    const appearance: QRAppearanceSettings = settings.qrAppearance || {}
+
+    // Generate QR code image as data URL with custom appearance
     const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {
-      errorCorrectionLevel: 'H',
+      errorCorrectionLevel: appearance.errorCorrectionLevel || 'H',
       type: 'image/png',
-      width: 512,
-      margin: 2,
+      width: appearance.width || 512,
+      margin: appearance.margin !== undefined ? appearance.margin : 2,
+      color: {
+        dark: appearance.darkColor || '#000000',
+        light: appearance.lightColor || '#FFFFFF',
+      },
     })
 
     // Track generation in analytics
@@ -156,6 +202,7 @@ export class QRCodeService {
         scanCount: true,
         expiresAt: true,
         scannedAt: true,
+        toolId: true,
       },
     })
 
@@ -211,6 +258,27 @@ export class QRCodeService {
         scannedAt: new Date(),
       },
     })
+
+    // Trigger Manychat sync if userId is provided
+    if (_userId) {
+      // Get tool to find adminId
+      const tool = await db.tool.findUnique({
+        where: { id: qrCode.toolId },
+        select: { adminId: true },
+      })
+
+      if (tool) {
+        // Trigger sync in background (don't wait for it)
+        syncQRDataToManychat({
+          qrCodeId: qrCode.id,
+          userId: _userId,
+          adminId: tool.adminId,
+          trigger: 'scan',
+        }).catch((error) => {
+          console.error('QR Manychat sync failed:', error)
+        })
+      }
+    }
 
     // Return success result based on type
     let message = 'QR code scanned successfully'
