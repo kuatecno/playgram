@@ -52,8 +52,8 @@ export class QRCodeService {
     // Create unique code
     const code = this.generateUniqueCode()
 
-    // Find a tool for this admin
-    const tool = await db.tool.findFirst({
+    // Find or create a tool for this admin
+    let tool = await db.tool.findFirst({
       where: {
         adminId,
         toolType: 'qr',
@@ -62,7 +62,17 @@ export class QRCodeService {
     })
 
     if (!tool) {
-      throw new Error('No active QR tool found for this admin')
+      // Auto-create QR tool if it doesn't exist
+      tool = await db.tool.create({
+        data: {
+          adminId,
+          toolType: 'qr',
+          name: 'QR Code Generator',
+          description: 'Generate and manage QR codes for promotions and events',
+          settings: {},
+          isActive: true,
+        },
+      })
     }
 
     // Create QR code record in database
