@@ -84,7 +84,7 @@ export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncRe
     // 5. Extract QR code data
     const qrData = extractQRCodeData(qrCode, qrCode.tool)
 
-    // 6. Get Manychat API token
+    // 6. Verify Manychat is configured
     const apiToken = await manychatService.getApiToken(adminId)
     if (!apiToken) {
       result.errors.push('Manychat API token not configured')
@@ -113,7 +113,7 @@ export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncRe
 
         // Sync to Manychat
         await manychatService.setCustomField(
-          apiToken,
+          adminId,
           user.manychatId,
           mapping.manychatFieldId,
           syncValue
