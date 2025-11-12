@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Download, Trash2, Power, QrCode as QrCodeIcon, Settings, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Link2 } from 'lucide-react'
+import { Plus, Download, Trash2, Power, QrCode as QrCodeIcon, Settings, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Link2, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -71,11 +71,14 @@ export default function QRCodesPage() {
   const [stats, setStats] = useState<QRCodeStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false)
   const [generatedQR, setGeneratedQR] = useState<{
     qrCodeDataUrl: string
     scanUrl: string
     label: string
   } | null>(null)
+  const [bulkGeneratedQRs, setBulkGeneratedQRs] = useState<any[]>([])
+  const [bulkGenerating, setBulkGenerating] = useState(false)
   const { toast } = useToast()
 
   // Form state
@@ -106,6 +109,15 @@ export default function QRCodesPage() {
   // Format pattern state
   const [qrFormat, setQrFormat] = useState<string>('')
   const [formatPreview, setFormatPreview] = useState<string>('')
+
+  // Bulk generation state
+  const [bulkFormData, setBulkFormData] = useState({
+    type: 'promotion' as 'promotion' | 'validation' | 'discount',
+    labelTemplate: '',
+    campaign: '',
+    message: '',
+    selectedUserIds: [] as string[],
+  })
 
   useEffect(() => {
     fetchQRCodes()
@@ -407,6 +419,72 @@ export default function QRCodesPage() {
     }
   }
 
+  const handleBulkGenerate = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (bulkFormData.selectedUserIds.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Please select at least one user',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setBulkGenerating(true)
+
+      const response = await fetch('/api/v1/qr/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: bulkFormData.type,
+          labelTemplate: bulkFormData.labelTemplate,
+          campaign: bulkFormData.campaign,
+          message: bulkFormData.message,
+          userIds: bulkFormData.selectedUserIds,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setBulkGeneratedQRs(data.data.qrCodes)
+        fetchQRCodes()
+        fetchStats()
+        toast({
+          title: 'Success',
+          description: `Generated ${data.data.qrCodes.length} QR codes successfully`,
+        })
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to generate QR codes',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to generate QR codes',
+        variant: 'destructive',
+      })
+    } finally {
+      setBulkGenerating(false)
+    }
+  }
+
+  const handleDownloadAllQRs = () => {
+    bulkGeneratedQRs.forEach((qr, index) => {
+      setTimeout(() => {
+        const link = document.createElement('a')
+        link.download = `qr-${qr.label.replace(/\s+/g, '-').toLowerCase()}.png`
+        link.href = qr.qrCodeDataUrl
+        link.click()
+      }, index * 100) // Stagger downloads to avoid browser blocking
+    })
+  }
+
   const getTypeBadgeVariant = (type: string) => {
     switch (type) {
       case 'promotion':
@@ -439,6 +517,213 @@ export default function QRCodesPage() {
             <Settings className="mr-2 h-4 w-4" />
             Settings
           </Button>
+          <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" onClick={() => setBulkGeneratedQRs([])}>
+                <Users className="mr-2 h-4 w-4" />
+                Bulk Generate
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+              {bulkGeneratedQRs.length > 0 ? (
+                // Show generated QR codes
+                <div className="space-y-4">
+                  <DialogHeader>
+                    <DialogTitle>Bulk QR Codes Generated</DialogTitle>
+                    <DialogDescription>
+                      {bulkGeneratedQRs.length} QR codes created successfully
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+                      {bulkGeneratedQRs.map((qr, index) => (
+                        <div key={index} className="border rounded p-2 space-y-2">
+                          <img
+                            src={qr.qrCodeDataUrl}
+                            alt={qr.label}
+                            className="w-full h-auto"
+                          />
+                          <p className="text-xs text-center truncate">{qr.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={handleDownloadAllQRs}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download All ({bulkGeneratedQRs.length})
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setIsBulkDialogOpen(false)
+                        setBulkGeneratedQRs([])
+                        setBulkFormData({
+                          type: 'promotion',
+                          labelTemplate: '',
+                          campaign: '',
+                          message: '',
+                          selectedUserIds: [],
+                        })
+                      }}
+                    >
+                      Done
+                    </Button>
+                  </DialogFooter>
+                </div>
+              ) : (
+                // Bulk generation form
+                <form onSubmit={handleBulkGenerate}>
+                  <DialogHeader>
+                    <DialogTitle>Bulk Generate QR Codes</DialogTitle>
+                    <DialogDescription>
+                      Generate personalized QR codes for multiple users
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bulk-type">Type</Label>
+                      <Select
+                        value={bulkFormData.type}
+                        onValueChange={(value: 'promotion' | 'validation' | 'discount') =>
+                          setBulkFormData({ ...bulkFormData, type: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="promotion">Promotion</SelectItem>
+                          <SelectItem value="discount">Discount</SelectItem>
+                          <SelectItem value="validation">Validation</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="bulk-label">Label Template</Label>
+                      <Input
+                        id="bulk-label"
+                        placeholder="VIP-{{first_name}}"
+                        value={bulkFormData.labelTemplate}
+                        onChange={(e) =>
+                          setBulkFormData({ ...bulkFormData, labelTemplate: e.target.value })
+                        }
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use placeholders: {'{{'} first_name{'}}'}, {'{{'} last_name{'}}'}, {'{{'} igUsername{'}}'}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="bulk-campaign">Campaign Name</Label>
+                      <Input
+                        id="bulk-campaign"
+                        placeholder="VIP_Campaign_2025"
+                        value={bulkFormData.campaign}
+                        onChange={(e) =>
+                          setBulkFormData({ ...bulkFormData, campaign: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    {bulkFormData.type === 'promotion' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="bulk-message">Promotion Message</Label>
+                        <Input
+                          id="bulk-message"
+                          placeholder="Exclusive VIP offer"
+                          value={bulkFormData.message}
+                          onChange={(e) =>
+                            setBulkFormData({ ...bulkFormData, message: e.target.value })
+                          }
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label>Select Users ({bulkFormData.selectedUserIds.length} selected)</Label>
+                      <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
+                        {loadingUsers ? (
+                          <p className="text-sm text-muted-foreground">Loading users...</p>
+                        ) : users.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No users with Manychat ID found</p>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2 pb-2 border-b">
+                              <input
+                                type="checkbox"
+                                id="select-all"
+                                checked={bulkFormData.selectedUserIds.length === users.length}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setBulkFormData({
+                                      ...bulkFormData,
+                                      selectedUserIds: users.map(u => u.id),
+                                    })
+                                  } else {
+                                    setBulkFormData({ ...bulkFormData, selectedUserIds: [] })
+                                  }
+                                }}
+                                className="rounded"
+                              />
+                              <Label htmlFor="select-all" className="text-sm font-semibold">
+                                Select All ({users.length})
+                              </Label>
+                            </div>
+                            {users.map((user) => (
+                              <div key={user.id} className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  id={`user-${user.id}`}
+                                  checked={bulkFormData.selectedUserIds.includes(user.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setBulkFormData({
+                                        ...bulkFormData,
+                                        selectedUserIds: [...bulkFormData.selectedUserIds, user.id],
+                                      })
+                                    } else {
+                                      setBulkFormData({
+                                        ...bulkFormData,
+                                        selectedUserIds: bulkFormData.selectedUserIds.filter(id => id !== user.id),
+                                      })
+                                    }
+                                  }}
+                                  className="rounded"
+                                />
+                                <Label htmlFor={`user-${user.id}`} className="text-sm">
+                                  {user.name} {user.username ? `(@${user.username})` : ''}
+                                </Label>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {qrFormat && bulkFormData.selectedUserIds.length > 0 && (
+                      <Alert>
+                        <CheckCircle2 className="h-4 w-4" />
+                        <AlertDescription>
+                          Will generate {bulkFormData.selectedUserIds.length} personalized QR code
+                          {bulkFormData.selectedUserIds.length !== 1 ? 's' : ''} using pattern: <code className="text-xs bg-background px-1 py-0.5 rounded">{qrFormat}</code>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" disabled={bulkGenerating || bulkFormData.selectedUserIds.length === 0}>
+                      {bulkGenerating ? 'Generating...' : `Generate ${bulkFormData.selectedUserIds.length} QR Code${bulkFormData.selectedUserIds.length !== 1 ? 's' : ''}`}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              )}
+            </DialogContent>
+          </Dialog>
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => setGeneratedQR(null)}>
