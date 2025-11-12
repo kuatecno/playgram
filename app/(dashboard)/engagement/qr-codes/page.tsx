@@ -92,7 +92,7 @@ export default function QRCodesPage() {
     validUntil: '',
     maxScans: '',
     metadata: {} as Record<string, string>,
-    userId: '',
+    userId: '__none__',
   })
 
   // Manychat integration state
@@ -109,6 +109,7 @@ export default function QRCodesPage() {
   // Format pattern state
   const [qrFormat, setQrFormat] = useState<string>('')
   const [formatPreview, setFormatPreview] = useState<string>('')
+  const [qrToolId, setQrToolId] = useState<string>('')
 
   // Bulk generation state
   const [bulkFormData, setBulkFormData] = useState({
@@ -124,8 +125,44 @@ export default function QRCodesPage() {
     fetchStats()
     fetchManychatStatus()
     fetchUsers()
-    fetchQRFormat()
+    ensureQRToolExists()
   }, [])
+
+  useEffect(() => {
+    if (qrToolId) {
+      fetchQRFormat()
+    }
+  }, [qrToolId])
+
+  const ensureQRToolExists = async () => {
+    try {
+      // Find existing QR tool or create one
+      const response = await fetch('/api/v1/tools?toolType=qr')
+      const data = await response.json()
+
+      if (data.success && data.data.tools.length > 0) {
+        setQrToolId(data.data.tools[0].id)
+      } else {
+        // Create QR tool
+        const createResponse = await fetch('/api/v1/tools', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            toolType: 'qr',
+            name: 'QR Code Generator',
+            description: 'Generate and manage QR codes',
+            settings: {},
+          }),
+        })
+        const createData = await createResponse.json()
+        if (createData.success) {
+          setQrToolId(createData.data.id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to ensure QR tool exists:', error)
+    }
+  }
 
   const fetchManychatStatus = async () => {
     try {
@@ -136,19 +173,24 @@ export default function QRCodesPage() {
 
       if (configData.success && configData.data?.isConnected) {
         setManychatConnected(true)
-
-        // Fetch field mappings
-        const mappingsResponse = await fetch('/api/v1/qr/field-mapping')
-        const mappingsData = await mappingsResponse.json()
-
-        if (mappingsData.success && mappingsData.data?.mappings) {
-          setFieldMappings(mappingsData.data.mappings.filter((m: any) => m.enabled))
-        }
       }
     } catch (error) {
       console.error('Failed to fetch Manychat status:', error)
     } finally {
       setLoadingManychatStatus(false)
+    }
+  }
+
+  const fetchFieldMappings = async (toolId: string) => {
+    try {
+      const mappingsResponse = await fetch(`/api/v1/qr/field-mapping?toolId=${toolId}`)
+      const mappingsData = await mappingsResponse.json()
+
+      if (mappingsData.success && mappingsData.data?.config?.mappings) {
+        setFieldMappings(mappingsData.data.config.mappings.filter((m: any) => m.enabled))
+      }
+    } catch (error) {
+      console.error('Failed to fetch field mappings:', error)
     }
   }
 
@@ -201,12 +243,19 @@ export default function QRCodesPage() {
   }
 
   const fetchQRFormat = async () => {
+    if (!qrToolId) return
+
     try {
-      const response = await fetch('/api/v1/qr/tool-settings')
+      const response = await fetch(`/api/v1/qr/tool-settings?toolId=${qrToolId}`)
       const data = await response.json()
 
       if (data.success && data.data?.qrFormat) {
         setQrFormat(data.data.qrFormat)
+      }
+
+      // Also fetch field mappings if Manychat is connected
+      if (manychatConnected) {
+        fetchFieldMappings(qrToolId)
       }
     } catch (error) {
       console.error('Failed to fetch QR format:', error)
@@ -244,7 +293,7 @@ export default function QRCodesPage() {
 
   // Effect to generate preview when user or campaign changes
   useEffect(() => {
-    if (formData.userId) {
+    if (formData.userId && formData.userId !== '__none__') {
       generateFormatPreview(formData.userId)
       const user = users.find(u => u.id === formData.userId)
       setSelectedUser(user || null)
@@ -276,8 +325,8 @@ export default function QRCodesPage() {
         data: {},
       }
 
-      // Add userId if personalized
-      if (formData.userId) {
+      // Add userId if personalized (but not if it's the "none" placeholder)
+      if (formData.userId && formData.userId !== '__none__') {
         requestBody.userId = formData.userId
       }
 
@@ -338,7 +387,7 @@ export default function QRCodesPage() {
           validUntil: '',
           maxScans: '',
           metadata: {},
-          userId: '',
+          userId: '__none__',
         })
         setSelectedUser(null)
         setFormatPreview('')
@@ -810,7 +859,7 @@ export default function QRCodesPage() {
                         <SelectValue placeholder="General (no specific user)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">General (no specific user)</SelectItem>
+                        <SelectItem value="__none__">General (no specific user)</SelectItem>
                         {loadingUsers ? (
                           <SelectItem value="_loading" disabled>
                             Loading users...
@@ -828,7 +877,7 @@ export default function QRCodesPage() {
                         )}
                       </SelectContent>
                     </Select>
-                    {formData.userId && selectedUser && (
+                    {formData.userId && formData.userId !== '__none__' && selectedUser && (
                       <p className="text-xs text-muted-foreground">
                         Personalized QR for {selectedUser.name}
                       </p>
@@ -836,7 +885,7 @@ export default function QRCodesPage() {
                   </div>
 
                   {/* Format Preview */}
-                  {qrFormat && formData.userId && formatPreview && (
+                  {qrFormat && formData.userId && formData.userId !== '__none__' && formatPreview && (
                     <div className="bg-muted p-3 rounded-lg space-y-2">
                       <div className="flex items-center gap-2">
                         <QrCodeIcon className="h-4 w-4 text-muted-foreground" />
