@@ -7,6 +7,7 @@ import { qrCodeService } from '@/features/qr-codes/services/QRCodeService'
 const generateQRSchema = z.object({
   type: z.enum(['promotion', 'validation', 'discount']),
   label: z.string().min(1, 'Label is required'),
+  userId: z.string().optional(),
   data: z.object({
     message: z.string().optional(),
     discountAmount: z.number().optional(),
@@ -71,6 +72,7 @@ export async function POST(request: NextRequest) {
       adminId: user.id,
       type: validated.type,
       label: validated.label,
+      userId: validated.userId,
       data,
     })
 

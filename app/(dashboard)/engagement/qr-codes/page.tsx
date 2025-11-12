@@ -89,6 +89,7 @@ export default function QRCodesPage() {
     validUntil: '',
     maxScans: '',
     metadata: {} as Record<string, string>,
+    userId: '',
   })
 
   // Manychat integration state
@@ -97,10 +98,21 @@ export default function QRCodesPage() {
   const [syncPreviewOpen, setSyncPreviewOpen] = useState(false)
   const [loadingManychatStatus, setLoadingManychatStatus] = useState(true)
 
+  // User selection state
+  const [users, setUsers] = useState<any[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<any>(null)
+
+  // Format pattern state
+  const [qrFormat, setQrFormat] = useState<string>('')
+  const [formatPreview, setFormatPreview] = useState<string>('')
+
   useEffect(() => {
     fetchQRCodes()
     fetchStats()
     fetchManychatStatus()
+    fetchUsers()
+    fetchQRFormat()
   }, [])
 
   const fetchManychatStatus = async () => {
@@ -160,6 +172,76 @@ export default function QRCodesPage() {
     }
   }
 
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true)
+      const response = await fetch('/api/v1/users/manychat-contacts?limit=100')
+      const data = await response.json()
+
+      if (data.success) {
+        setUsers(data.data.users || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const fetchQRFormat = async () => {
+    try {
+      const response = await fetch('/api/v1/qr/tool-settings')
+      const data = await response.json()
+
+      if (data.success && data.data?.qrFormat) {
+        setQrFormat(data.data.qrFormat)
+      }
+    } catch (error) {
+      console.error('Failed to fetch QR format:', error)
+    }
+  }
+
+  const generateFormatPreview = async (userId: string) => {
+    if (!qrFormat || !userId) {
+      setFormatPreview('')
+      return
+    }
+
+    try {
+      const user = users.find(u => u.id === userId)
+      if (!user) return
+
+      const response = await fetch('/api/v1/qr/format-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          format: qrFormat,
+          userId: userId,
+          metadata: formData.campaign ? { campaign: formData.campaign } : {},
+        }),
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setFormatPreview(data.data.preview)
+      }
+    } catch (error) {
+      console.error('Failed to generate format preview:', error)
+    }
+  }
+
+  // Effect to generate preview when user or campaign changes
+  useEffect(() => {
+    if (formData.userId) {
+      generateFormatPreview(formData.userId)
+      const user = users.find(u => u.id === formData.userId)
+      setSelectedUser(user || null)
+    } else {
+      setFormatPreview('')
+      setSelectedUser(null)
+    }
+  }, [formData.userId, formData.campaign])
+
   const handleCreateQRCode = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -167,6 +249,7 @@ export default function QRCodesPage() {
       const requestBody: {
         type: string
         label: string
+        userId?: string
         data: {
           message?: string
           discountAmount?: number
@@ -179,6 +262,11 @@ export default function QRCodesPage() {
         type: formData.type,
         label: formData.label,
         data: {},
+      }
+
+      // Add userId if personalized
+      if (formData.userId) {
+        requestBody.userId = formData.userId
       }
 
       // Add type-specific data
@@ -238,7 +326,10 @@ export default function QRCodesPage() {
           validUntil: '',
           maxScans: '',
           metadata: {},
+          userId: '',
         })
+        setSelectedUser(null)
+        setFormatPreview('')
       } else {
         toast({
           title: 'Error',
@@ -420,6 +511,67 @@ export default function QRCodesPage() {
                       required
                     />
                   </div>
+
+                  {/* User Selection for Personalization */}
+                  <div className="space-y-2">
+                    <Label htmlFor="userId">Generate For (Optional)</Label>
+                    <Select
+                      value={formData.userId}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, userId: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="General (no specific user)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">General (no specific user)</SelectItem>
+                        {loadingUsers ? (
+                          <SelectItem value="_loading" disabled>
+                            Loading users...
+                          </SelectItem>
+                        ) : users.length === 0 ? (
+                          <SelectItem value="_empty" disabled>
+                            No users with Manychat ID
+                          </SelectItem>
+                        ) : (
+                          users.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name} {user.username ? `(@${user.username})` : ''}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {formData.userId && selectedUser && (
+                      <p className="text-xs text-muted-foreground">
+                        Personalized QR for {selectedUser.name}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Format Preview */}
+                  {qrFormat && formData.userId && formatPreview && (
+                    <div className="bg-muted p-3 rounded-lg space-y-2">
+                      <div className="flex items-center gap-2">
+                        <QrCodeIcon className="h-4 w-4 text-muted-foreground" />
+                        <Label className="text-sm">QR Code Preview</Label>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">Pattern:</p>
+                        <code className="text-xs bg-background px-2 py-1 rounded block">
+                          {qrFormat}
+                        </code>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">Will generate:</p>
+                        <code className="text-xs bg-background px-2 py-1 rounded block font-semibold">
+                          {formatPreview}
+                        </code>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="type">Type</Label>
                     <Select
