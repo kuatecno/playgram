@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Download, Trash2, Power, QrCode as QrCodeIcon, Settings } from 'lucide-react'
+import { Plus, Download, Trash2, Power, QrCode as QrCodeIcon, Settings, ChevronDown, ChevronUp, AlertCircle, CheckCircle2, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -25,6 +25,12 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 
 interface QRCode {
   id: string
@@ -76,17 +82,51 @@ export default function QRCodesPage() {
   const [formData, setFormData] = useState({
     type: 'promotion' as 'promotion' | 'validation' | 'discount',
     label: '',
+    campaign: '',
     message: '',
     discountAmount: '',
     discountType: 'percentage' as 'percentage' | 'fixed',
     validUntil: '',
     maxScans: '',
+    metadata: {} as Record<string, string>,
   })
+
+  // Manychat integration state
+  const [manychatConnected, setManychatConnected] = useState(false)
+  const [fieldMappings, setFieldMappings] = useState<any[]>([])
+  const [syncPreviewOpen, setSyncPreviewOpen] = useState(false)
+  const [loadingManychatStatus, setLoadingManychatStatus] = useState(true)
 
   useEffect(() => {
     fetchQRCodes()
     fetchStats()
+    fetchManychatStatus()
   }, [])
+
+  const fetchManychatStatus = async () => {
+    try {
+      setLoadingManychatStatus(true)
+      // Fetch Manychat config
+      const configResponse = await fetch('/api/v1/manychat/config')
+      const configData = await configResponse.json()
+
+      if (configData.success && configData.data?.isConnected) {
+        setManychatConnected(true)
+
+        // Fetch field mappings
+        const mappingsResponse = await fetch('/api/v1/qr/field-mapping')
+        const mappingsData = await mappingsResponse.json()
+
+        if (mappingsData.success && mappingsData.data?.mappings) {
+          setFieldMappings(mappingsData.data.mappings.filter((m: any) => m.enabled))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch Manychat status:', error)
+    } finally {
+      setLoadingManychatStatus(false)
+    }
+  }
 
   const fetchQRCodes = async () => {
     try {
@@ -133,6 +173,7 @@ export default function QRCodesPage() {
           discountType?: string
           validUntil?: string
           maxScans?: number
+          metadata?: Record<string, unknown>
         }
       } = {
         type: formData.type,
@@ -154,6 +195,16 @@ export default function QRCodesPage() {
       }
       if (formData.maxScans) {
         requestBody.data.maxScans = parseInt(formData.maxScans)
+      }
+
+      // Add campaign and metadata
+      const metadata: Record<string, unknown> = { ...formData.metadata }
+      if (formData.campaign) {
+        metadata.campaign = formData.campaign
+        metadata.campaign_name = formData.campaign
+      }
+      if (Object.keys(metadata).length > 0) {
+        requestBody.data.metadata = metadata
       }
 
       const response = await fetch('/api/v1/qr', {
@@ -180,11 +231,13 @@ export default function QRCodesPage() {
         setFormData({
           type: 'promotion',
           label: '',
+          campaign: '',
           message: '',
           discountAmount: '',
           discountType: 'percentage',
           validUntil: '',
           maxScans: '',
+          metadata: {},
         })
       } else {
         toast({
@@ -386,6 +439,21 @@ export default function QRCodesPage() {
                     </Select>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="campaign">Campaign Name (Optional)</Label>
+                    <Input
+                      id="campaign"
+                      placeholder="Summer_Sale_2025"
+                      value={formData.campaign}
+                      onChange={(e) =>
+                        setFormData({ ...formData, campaign: e.target.value })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Used for tracking and Manychat field mapping
+                    </p>
+                  </div>
+
                   {formData.type === 'promotion' && (
                     <div className="space-y-2">
                       <Label htmlFor="message">Promotion Message</Label>
@@ -459,6 +527,100 @@ export default function QRCodesPage() {
                         setFormData({ ...formData, maxScans: e.target.value })
                       }
                     />
+                  </div>
+
+                  {/* Manychat Integration Section */}
+                  <div className="border-t pt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Link2 className="h-4 w-4 text-muted-foreground" />
+                        <Label className="text-base">Manychat Integration</Label>
+                      </div>
+                      {loadingManychatStatus ? (
+                        <Badge variant="outline">Loading...</Badge>
+                      ) : manychatConnected ? (
+                        <Badge variant="default" className="bg-green-600">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Connected
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Not Connected
+                        </Badge>
+                      )}
+                    </div>
+
+                    {!loadingManychatStatus && (
+                      <>
+                        {!manychatConnected ? (
+                          <Alert>
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                              Manychat is not connected. QR data will not be synced.{' '}
+                              <Button
+                                variant="link"
+                                className="h-auto p-0"
+                                onClick={() => router.push('/settings/manychat')}
+                              >
+                                Connect now
+                              </Button>
+                            </AlertDescription>
+                          </Alert>
+                        ) : fieldMappings.length === 0 ? (
+                          <Alert>
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                              No field mappings configured. Configure mappings in{' '}
+                              <Button
+                                variant="link"
+                                className="h-auto p-0"
+                                onClick={() => router.push('/engagement/qr-codes/settings')}
+                              >
+                                QR Settings
+                              </Button>
+                            </AlertDescription>
+                          </Alert>
+                        ) : (
+                          <Collapsible open={syncPreviewOpen} onOpenChange={setSyncPreviewOpen}>
+                            <CollapsibleTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-between"
+                              >
+                                <span className="text-sm text-muted-foreground">
+                                  {fieldMappings.length} field{fieldMappings.length !== 1 ? 's' : ''} will sync when scanned
+                                </span>
+                                {syncPreviewOpen ? (
+                                  <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="space-y-2 pt-2">
+                              <div className="text-xs text-muted-foreground mb-2">
+                                These fields will be synced to Manychat when the QR code is scanned:
+                              </div>
+                              {fieldMappings.map((mapping: any, index: number) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center gap-2 text-xs bg-muted p-2 rounded"
+                                >
+                                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                                  <span className="font-medium">{mapping.qrField}</span>
+                                  <span className="text-muted-foreground">→</span>
+                                  <span className="text-muted-foreground">
+                                    {mapping.manychatFieldName || mapping.manychatFieldId}
+                                  </span>
+                                </div>
+                              ))}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
                 <DialogFooter>
