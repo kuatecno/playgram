@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { QR_TYPES } from '@/config/constants'
 import { resolveQRCodeFormat, fetchUserDataForQR } from './QRFormatResolver'
 import { syncQRDataToManychat } from './QRManychatSync'
+import { emitQRCreated, emitQRScanned } from '@/lib/webhooks/webhook-events'
 
 export interface QRAppearanceSettings {
   width?: number
@@ -164,6 +165,11 @@ export class QRCodeService {
       },
     })
 
+    // Emit webhook event for QR creation
+    emitQRCreated(adminId, qrCode.id).catch((error) => {
+      console.error('Failed to emit QR created webhook:', error)
+    })
+
     const qrData = qrCode.metadata as any
 
     return {
@@ -259,15 +265,15 @@ export class QRCodeService {
       },
     })
 
-    // Trigger Manychat sync if userId is provided
-    if (_userId) {
-      // Get tool to find adminId
-      const tool = await db.tool.findUnique({
-        where: { id: qrCode.toolId },
-        select: { adminId: true },
-      })
+    // Get tool to find adminId
+    const tool = await db.tool.findUnique({
+      where: { id: qrCode.toolId },
+      select: { adminId: true },
+    })
 
-      if (tool) {
+    if (tool) {
+      // Trigger Manychat sync if userId is provided
+      if (_userId) {
         // Trigger sync in background (don't wait for it)
         syncQRDataToManychat({
           qrCodeId: qrCode.id,
@@ -278,6 +284,11 @@ export class QRCodeService {
           console.error('QR Manychat sync failed:', error)
         })
       }
+
+      // Emit webhook event for QR scan
+      emitQRScanned(tool.adminId, qrCode.id, _userId).catch((error) => {
+        console.error('Failed to emit QR scanned webhook:', error)
+      })
     }
 
     // Return success result based on type
