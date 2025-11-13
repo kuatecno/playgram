@@ -37,7 +37,6 @@ export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncRe
           select: {
             id: true,
             name: true,
-            settings: true,
           },
         },
       },

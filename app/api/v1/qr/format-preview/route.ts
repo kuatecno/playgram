@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/session'
-import { previewQRCodeFormat } from '@/features/qr-codes/services/QRFormatResolver'
+import {
+  previewQRCodeFormat,
+  resolveQRCodeFormat,
+  fetchUserDataForQR,
+} from '@/features/qr-codes/services/QRFormatResolver'
+import { qrToolConfigService } from '@/features/qr-codes/services/QRToolConfigService'
 
 /**
  * POST /api/v1/qr/format-preview
@@ -11,19 +16,51 @@ export async function POST(req: NextRequest) {
     await requireAuth()
 
     const body = await req.json()
-    const { pattern } = body
+    const { pattern, toolId, userId, metadata } = body
 
-    if (!pattern) {
-      return NextResponse.json({ error: 'pattern is required' }, { status: 400 })
+    let formatPattern = pattern as string | undefined
+
+    if (!formatPattern && toolId) {
+      const config = await qrToolConfigService.getConfig(toolId)
+      formatPattern = config?.formatPattern || undefined
     }
 
-    // Generate preview
-    const preview = previewQRCodeFormat(pattern)
+    if (!formatPattern) {
+      return NextResponse.json({ error: 'pattern or toolId is required' }, { status: 400 })
+    }
+
+    const hasUserContext = typeof userId === 'string' && userId.length > 0
+    const hasMetadata = metadata && typeof metadata === 'object'
+
+    let preview: string
+
+    if (!hasUserContext && !hasMetadata) {
+      // Use sample data preview when no personalization requested
+      preview = previewQRCodeFormat(formatPattern)
+    } else {
+      const resolverData: any = {
+        metadata: hasMetadata ? metadata : {},
+      }
+
+      if (hasUserContext) {
+        const userData = await fetchUserDataForQR(userId)
+        Object.assign(resolverData, userData)
+
+        if (hasMetadata) {
+          resolverData.metadata = {
+            ...(userData.metadata || {}),
+            ...metadata,
+          }
+        }
+      }
+
+      preview = resolveQRCodeFormat(formatPattern, resolverData)
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        pattern,
+        pattern: formatPattern,
         preview,
       },
     })

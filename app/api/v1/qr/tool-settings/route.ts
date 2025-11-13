@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/session'
 import { db } from '@/lib/db'
+import {
+  qrToolConfigService,
+  DEFAULT_QR_APPEARANCE,
+  type UpdateQRToolConfigInput,
+} from '@/features/qr-codes/services/QRToolConfigService'
 
 /**
  * GET /api/v1/qr/tool-settings?toolId=xxx
@@ -23,34 +28,25 @@ export async function GET(req: NextRequest) {
         id: toolId,
         adminId: user.id,
       },
-      select: {
-        id: true,
-        name: true,
-        settings: true,
-      },
+      select: { id: true, name: true },
     })
 
     if (!tool) {
       return NextResponse.json({ error: 'Tool not found' }, { status: 404 })
     }
 
-    const settings = typeof tool.settings === 'string'
-      ? JSON.parse(tool.settings)
-      : tool.settings || {}
+    const config = await qrToolConfigService.ensureConfigForTool(tool.id)
+    const appearance = qrToolConfigService.getAppearance(config)
 
     return NextResponse.json({
       success: true,
       data: {
         toolId: tool.id,
         toolName: tool.name,
-        qrFormat: settings.qrFormat || settings.qrCodeFormat || '',
-        qrAppearance: settings.qrAppearance || {
-          width: 512,
-          margin: 2,
-          errorCorrectionLevel: 'H',
-          darkColor: '#000000',
-          lightColor: '#FFFFFF',
-        },
+        qrFormat: config.formatPattern || '',
+        qrAppearance: appearance || DEFAULT_QR_APPEARANCE,
+        fallbackUrl: config.fallbackUrl || null,
+        securityPolicy: config.securityPolicy || {},
       },
     })
   } catch (error: any) {
@@ -71,7 +67,7 @@ export async function POST(req: NextRequest) {
     const user = await requireAuth()
 
     const body = await req.json()
-    const { toolId, qrFormat, qrAppearance } = body
+    const { toolId, qrFormat, qrAppearance, fallbackUrl, securityPolicy } = body
 
     if (!toolId) {
       return NextResponse.json({ error: 'toolId is required' }, { status: 400 })
@@ -83,49 +79,43 @@ export async function POST(req: NextRequest) {
         id: toolId,
         adminId: user.id,
       },
-      select: {
-        settings: true,
-      },
+      select: { id: true },
     })
 
     if (!tool) {
       return NextResponse.json({ error: 'Tool not found' }, { status: 404 })
     }
 
-    // Parse existing settings
-    let settings: any = {}
-    if (tool.settings) {
-      try {
-        settings = typeof tool.settings === 'string'
-          ? JSON.parse(tool.settings)
-          : tool.settings
-      } catch (error) {
-        console.error('Failed to parse existing settings:', error)
-      }
-    }
+    const updateInput: UpdateQRToolConfigInput = {}
 
-    // Update settings
     if (qrFormat !== undefined) {
-      settings.qrFormat = qrFormat
-      // Also set qrCodeFormat for backwards compatibility
-      settings.qrCodeFormat = qrFormat
+      updateInput.formatPattern = qrFormat || null
     }
 
     if (qrAppearance !== undefined) {
-      settings.qrAppearance = qrAppearance
+      updateInput.appearance = qrAppearance || DEFAULT_QR_APPEARANCE
     }
 
-    // Save back to database
-    await db.tool.update({
-      where: { id: toolId },
-      data: {
-        settings: JSON.parse(JSON.stringify(settings)), // Ensure JSON compatibility
-      },
-    })
+    if (fallbackUrl !== undefined) {
+      updateInput.fallbackUrl = fallbackUrl || null
+    }
+
+    if (securityPolicy !== undefined) {
+      updateInput.securityPolicy = securityPolicy || {}
+    }
+
+    const updated = await qrToolConfigService.updateConfig(toolId, updateInput)
+    const appearance = qrToolConfigService.getAppearance(updated)
 
     return NextResponse.json({
       success: true,
-      message: 'Tool settings saved successfully',
+      data: {
+        toolId,
+        qrFormat: updated.formatPattern || '',
+        qrAppearance: appearance,
+        fallbackUrl: updated.fallbackUrl || null,
+        securityPolicy: updated.securityPolicy || {},
+      },
     })
   } catch (error: any) {
     console.error('Failed to save QR tool settings:', error)

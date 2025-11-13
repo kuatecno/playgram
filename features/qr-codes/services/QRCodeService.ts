@@ -4,6 +4,7 @@ import { QR_TYPES } from '@/config/constants'
 import { resolveQRCodeFormat, fetchUserDataForQR } from './QRFormatResolver'
 import { syncQRDataToManychat } from './QRManychatSync'
 import { emitQRCreated, emitQRScanned } from '@/lib/webhooks/webhook-events'
+import { qrToolConfigService } from './QRToolConfigService'
 
 export interface QRAppearanceSettings {
   width?: number
@@ -62,37 +63,13 @@ export class QRCodeService {
     const { adminId, type, label, data, userId } = params
 
     // Find or create a tool for this admin
-    let tool = await db.tool.findFirst({
-      where: {
-        adminId,
-        toolType: 'qr',
-        isActive: true,
-      },
-    })
+    const { tool, config } = await qrToolConfigService.ensureToolForAdmin(adminId)
 
-    if (!tool) {
-      // Auto-create QR tool if it doesn't exist
-      tool = await db.tool.create({
-        data: {
-          adminId,
-          toolType: 'qr',
-          name: 'QR Code Generator',
-          description: 'Generate and manage QR codes for promotions and events',
-          settings: {},
-          isActive: true,
-        },
-      })
-    }
-
-    // Generate QR code based on tool settings
+    // Generate QR code based on tool-level config
     let code: string
 
     try {
-      const settings = typeof tool.settings === 'string'
-        ? JSON.parse(tool.settings)
-        : tool.settings || {}
-
-      const qrFormat = settings.qrFormat || settings.qrCodeFormat
+      const qrFormat = config?.formatPattern || null
 
       // If custom format is defined and userId is provided, use format resolver
       if (qrFormat && userId) {
@@ -135,14 +112,12 @@ export class QRCodeService {
 
     // Generate scan URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'
-    const scanUrl = `${baseUrl}/api/v1/qr/scan/${qrCode.code}`
+    const scanUrl = config.fallbackUrl
+      ? `${config.fallbackUrl}?code=${encodeURIComponent(qrCode.code)}`
+      : `${baseUrl}/api/v1/qr/scan/${qrCode.code}`
 
     // Get QR appearance settings from tool config
-    const settings = typeof tool.settings === 'string'
-      ? JSON.parse(tool.settings)
-      : tool.settings || {}
-
-    const appearance: QRAppearanceSettings = settings.qrAppearance || {}
+    const appearance: QRAppearanceSettings = qrToolConfigService.getAppearance(config)
 
     // Generate QR code image as data URL with custom appearance
     const qrCodeDataUrl = await QRCode.toDataURL(scanUrl, {

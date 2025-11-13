@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { qrToolConfigService } from './QRToolConfigService'
 
 /**
  * Available QR code fields that can be mapped to Manychat custom fields
@@ -86,24 +86,22 @@ export interface QRFieldMappingConfig {
  * Get QR field mappings for a tool
  */
 export async function getQRFieldMappings(toolId: string): Promise<QRFieldMappingConfig | null> {
-  const tool = await db.tool.findUnique({
-    where: { id: toolId },
-    select: { settings: true },
-  })
-
-  if (!tool || !tool.settings) {
+  const config = await qrToolConfigService.getConfig(toolId)
+  if (!config) {
     return null
   }
 
-  try {
-    const settings = typeof tool.settings === 'string'
-      ? JSON.parse(tool.settings)
-      : tool.settings
+  const mappingConfig = qrToolConfigService.getFieldMappingConfig(config)
+  const normalizedMappings = (mappingConfig.mappings || []).map((mapping) => ({
+    ...mapping,
+    qrField: mapping.qrField as QRFieldKey,
+  }))
 
-    return settings.qrFieldMapping || null
-  } catch (error) {
-    console.error('Failed to parse tool settings:', error)
-    return null
+  return {
+    toolId,
+    mappings: normalizedMappings,
+    autoSyncOnScan: mappingConfig.autoSyncOnScan,
+    autoSyncOnValidation: mappingConfig.autoSyncOnValidation,
   }
 }
 
@@ -114,38 +112,13 @@ export async function saveQRFieldMappings(
   toolId: string,
   mappingConfig: Omit<QRFieldMappingConfig, 'toolId'>
 ): Promise<void> {
-  const tool = await db.tool.findUnique({
-    where: { id: toolId },
-    select: { settings: true },
-  })
-
-  if (!tool) {
-    throw new Error('Tool not found')
-  }
-
-  // Parse existing settings or create new
-  let settings: any = {}
-  if (tool.settings) {
-    try {
-      settings = typeof tool.settings === 'string'
-        ? JSON.parse(tool.settings)
-        : tool.settings
-    } catch (error) {
-      console.error('Failed to parse existing settings:', error)
-    }
-  }
-
-  // Update QR field mapping
-  settings.qrFieldMapping = {
-    toolId,
-    ...mappingConfig,
-  }
-
-  // Save back to database
-  await db.tool.update({
-    where: { id: toolId },
-    data: {
-      settings: JSON.parse(JSON.stringify(settings)), // Ensure JSON compatibility
+  await qrToolConfigService.updateConfig(toolId, {
+    fieldMappings: {
+      mappings: mappingConfig.mappings.map((mapping) => ({
+        ...mapping,
+      })),
+      autoSyncOnScan: mappingConfig.autoSyncOnScan,
+      autoSyncOnValidation: mappingConfig.autoSyncOnValidation,
     },
   })
 }
