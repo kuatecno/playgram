@@ -13,6 +13,7 @@ import {
   Settings,
   LogOut,
   QrCode,
+  Image,
   Calendar,
   MessageSquare,
 } from 'lucide-react'
@@ -32,6 +33,7 @@ const navigation = [
     icon: Target,
     children: [
       { name: 'QR Codes', href: '/engagement/qr-codes', icon: QrCode },
+      { name: 'Dynamic Gallery', href: '/engagement/dynamic-gallery', icon: Image },
       { name: 'Bookings', href: '/engagement/bookings', icon: Calendar },
       { name: 'AI Chat', href: '/engagement/ai-chat', icon: MessageSquare },
     ],
