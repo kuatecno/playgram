@@ -16,7 +16,7 @@ const updateWebhookSchema = z.object({
  * Get a single webhook subscription
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
@@ -151,7 +151,7 @@ export async function PATCH(
  * Delete a webhook subscription
  */
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params

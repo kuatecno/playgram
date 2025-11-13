@@ -9,7 +9,7 @@ import { sendWebhook, WEBHOOK_EVENTS } from '@/lib/webhooks/webhook-service'
  * Send a test webhook delivery
  */
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params

@@ -201,7 +201,7 @@ export async function emitUserUpdated(
  */
 export async function emitUserDeleted(
   adminId: string,
-  userId: string,
+  _userId: string,
   userData: any
 ) {
   await emitWebhookEvent(adminId, WEBHOOK_EVENTS.USER_DELETED, {

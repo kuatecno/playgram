@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Users, Search, TrendingUp, UserCheck, UserX, Instagram, MessageCircle } from 'lucide-react'
+import { Users, Search, TrendingUp, UserCheck, UserX, Instagram, MessageCircle, Eye } from 'lucide-react'
 
 interface Contact {
   id: string
@@ -42,6 +43,7 @@ interface ContactStats {
 }
 
 export default function ContactsPage() {
+  const router = useRouter()
   const [contacts, setContacts] = useState<Contact[]>([])
   const [stats, setStats] = useState<ContactStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -343,6 +345,18 @@ export default function ContactsPage() {
                         <p className="text-lg font-bold">{contact.followerCount.toLocaleString()}</p>
                       </div>
                     )}
+                  </div>
+
+                  {/* View Details Button */}
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/contacts/${contact.id}`)}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </Button>
                   </div>
                 </div>
               </CardContent>

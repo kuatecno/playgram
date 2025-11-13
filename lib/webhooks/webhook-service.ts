@@ -73,7 +73,7 @@ export async function sendWebhook(
     data: {
       subscriptionId: subscription.id,
       event: payload.event,
-      payload: payload,
+      payload: JSON.parse(JSON.stringify(payload)),
       status: 'pending',
       attempts: attempt,
     },

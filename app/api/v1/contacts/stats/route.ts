@@ -7,7 +7,7 @@ import { db } from '@/lib/db'
  * GET /api/v1/contacts/stats
  * Get contact statistics
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     await requireAuth()
 
