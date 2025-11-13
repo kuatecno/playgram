@@ -228,55 +228,6 @@ export default function ContactsPage() {
     )
   }
 
-  // Show only webhook setup if no contacts exist
-  if (stats && stats.total === 0) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Contacts</h1>
-          <p className="text-muted-foreground">
-            Get started by syncing your contacts from Manychat
-          </p>
-        </div>
-
-        {/* Webhook Setup Guide */}
-        <Card className="border-2 border-primary/50">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Webhook className="h-5 w-5 text-primary" />
-              <CardTitle>Automatic Contact Sync</CardTitle>
-            </div>
-            <CardDescription>
-              Set up webhooks to sync contacts automatically from Manychat
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg bg-primary/5 border border-primary/20 p-4 space-y-3">
-              <p className="text-sm font-medium">
-                Get your personalized webhook configuration with step-by-step instructions.
-              </p>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>✓ Your unique admin ID (pre-configured)</li>
-                <li>✓ Webhook URL ready to copy</li>
-                <li>✓ Complete JSON body template</li>
-                <li>✓ Detailed Manychat setup guide</li>
-              </ul>
-            </div>
-            <Button asChild className="w-full" size="lg">
-              <a href="/settings/manychat/webhook-helper">
-                <Webhook className="mr-2 h-5 w-5" />
-                Go to Webhook Setup Guide
-              </a>
-            </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              Takes 5 minutes to configure • Syncs contacts in real-time
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -348,6 +299,41 @@ export default function ContactsPage() {
           </Card>
         </div>
       )}
+
+      {/* Webhook Setup Guide */}
+      <Card className="border-2 border-primary/50">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Webhook className="h-5 w-5 text-primary" />
+            <CardTitle>Automatic Contact Sync</CardTitle>
+          </div>
+          <CardDescription>
+            Set up webhooks to sync contacts automatically from Manychat
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg bg-primary/5 border border-primary/20 p-4 space-y-3">
+            <p className="text-sm font-medium">
+              Get your personalized webhook configuration with step-by-step instructions.
+            </p>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li>✓ Your unique admin ID (pre-configured)</li>
+              <li>✓ Webhook URL ready to copy</li>
+              <li>✓ Complete JSON body template</li>
+              <li>✓ Detailed Manychat setup guide</li>
+            </ul>
+          </div>
+          <Button asChild className="w-full" size="lg">
+            <a href="/settings/manychat/webhook-helper">
+              <Webhook className="mr-2 h-5 w-5" />
+              Go to Webhook Setup Guide
+            </a>
+          </Button>
+          <p className="text-xs text-center text-muted-foreground">
+            Takes 5 minutes to configure • Syncs contacts in real-time
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Filters */}
       <Card>

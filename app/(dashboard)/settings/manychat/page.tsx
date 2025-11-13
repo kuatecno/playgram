@@ -295,6 +295,19 @@ export default function ManychatSettingsPage() {
                 <p className="text-sm">{new Date(config.updatedAt).toLocaleString()}</p>
               </div>
 
+              {/* Webhook Setup Button */}
+              <div className="pt-2 border-t">
+                <Link href="/settings/manychat/webhook-helper">
+                  <Button variant="default" size="sm" className="w-full">
+                    <Webhook className="mr-2 h-4 w-4" />
+                    Configure Webhook Setup
+                  </Button>
+                </Link>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Get your webhook URL and admin ID to sync contacts automatically
+                </p>
+              </div>
+
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="destructive" size="sm">
@@ -381,43 +394,6 @@ export default function ManychatSettingsPage() {
                 Save & Connect
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Webhook Setup Card (if connected) */}
-      {config?.isConnected && (
-        <Card className="border-2 border-primary/50">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Webhook className="h-5 w-5 text-primary" />
-              <CardTitle>Automatic Contact Sync</CardTitle>
-            </div>
-            <CardDescription>
-              Set up webhooks to sync contacts automatically from Manychat
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg bg-primary/5 border border-primary/20 p-4 space-y-3">
-              <p className="text-sm font-medium">
-                Get your personalized webhook configuration with step-by-step instructions.
-              </p>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>✓ Your unique admin ID (pre-configured)</li>
-                <li>✓ Webhook URL ready to copy</li>
-                <li>✓ Complete JSON body template</li>
-                <li>✓ Detailed Manychat setup guide</li>
-              </ul>
-            </div>
-            <Button asChild className="w-full" size="lg">
-              <Link href="/settings/manychat/webhook-helper">
-                <Webhook className="mr-2 h-5 w-5" />
-                Go to Webhook Setup Guide
-              </Link>
-            </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              Takes 5 minutes to configure • Syncs contacts in real-time
-            </p>
           </CardContent>
         </Card>
       )}
