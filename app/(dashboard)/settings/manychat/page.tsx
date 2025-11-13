@@ -390,10 +390,10 @@ export default function ManychatSettingsPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Sync Contacts</CardTitle>
+                <CardTitle className="text-lg">Manual Bulk Sync</CardTitle>
               </div>
               <CardDescription>
-                Import contacts from Manychat to your database
+                Import all existing contacts from Manychat. New contacts sync automatically via webhooks when they interact.
               </CardDescription>
             </CardHeader>
             <CardContent>
