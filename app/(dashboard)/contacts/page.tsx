@@ -380,7 +380,7 @@ export default function ContactsPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => copyToClipboard('{\n  "admin_id": "{{admin_id}}",\n  "subscriber_data": {{subscriber_data|to_json:true}}\n}', 'body')}
+                  onClick={() => copyToClipboard('{\n  "admin_id": "YOUR_ADMIN_ID_NUMBER",\n  "subscriber_data": {{subscriber_data|to_json:true}}\n}', 'body')}
                   className="h-8"
                 >
                   {copiedField === 'body' ? (
@@ -398,7 +398,7 @@ export default function ContactsPage() {
               </div>
               <div className="rounded-lg bg-muted p-3 font-mono text-xs overflow-x-auto">
                 <pre>{`{
-  "admin_id": "{{admin_id}}",
+  "admin_id": "YOUR_ADMIN_ID_NUMBER",
   "subscriber_data": {{subscriber_data|to_json:true}}
 }`}</pre>
               </div>
@@ -406,11 +406,24 @@ export default function ContactsPage() {
                 Copy this exact JSON structure into Manychat&apos;s External Request action
               </p>
               <div className="rounded-lg border-2 border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20 p-3 space-y-2">
-                <h5 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">Important: How to enter variables</h5>
-                <ul className="text-xs text-yellow-800 dark:text-yellow-200 space-y-1">
-                  <li>• <strong>admin_id</strong>: Type exactly <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">{`{{admin_id}}`}</code> (including curly braces) - it&apos;s a Manychat system variable</li>
-                  <li>• <strong>subscriber_data</strong>: Click &quot;+ Add Full Contact Data&quot; button, then select &quot;Full Contact Data&quot; from the dropdown</li>
-                  <li>• Do NOT use quotes around <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">subscriber_data</code> - Manychat will format it correctly</li>
+                <h5 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">Important: How to find your admin_id</h5>
+                <div className="text-xs text-yellow-800 dark:text-yellow-200 space-y-2">
+                  <p><strong>admin_id</strong> is your Manychat account identifier. To find it:</p>
+                  <ol className="list-decimal list-inside ml-2 space-y-1">
+                    <li>Go to Manychat Settings → API</li>
+                    <li>Look for &quot;Application ID&quot; or check your Manychat dashboard URL</li>
+                    <li>Your URL looks like: <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">manychat.com/fb[NUMBERS]</code></li>
+                    <li>The numbers after &quot;fb&quot; are your admin_id (e.g., fb3590441 → admin_id is 3590441)</li>
+                  </ol>
+                  <p className="mt-2">Then in the JSON body, replace <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">YOUR_ADMIN_ID_NUMBER</code> with your actual admin_id.</p>
+                </div>
+              </div>
+              <div className="rounded-lg border-2 border-blue-500/50 bg-blue-50 dark:bg-blue-950/20 p-3 space-y-2">
+                <h5 className="text-sm font-semibold text-blue-900 dark:text-blue-100">How to enter subscriber_data</h5>
+                <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                  <li>• Click the &quot;+ Add Full Contact Data&quot; button in Manychat</li>
+                  <li>• Select &quot;Full Contact Data&quot; from the dropdown</li>
+                  <li>• Do NOT use quotes around it - Manychat will format it correctly</li>
                 </ul>
               </div>
             </div>
@@ -431,7 +444,7 @@ export default function ContactsPage() {
                   </div>
                 </li>
                 <li>In Request Body, switch to JSON mode</li>
-                <li>For <strong>admin_id</strong>: Type the text <code className="bg-muted px-1 rounded">{`{{admin_id}}`}</code> directly (don&apos;t select from dropdown)</li>
+                <li>For <strong>admin_id</strong>: Enter your numeric admin_id (see yellow box above for how to find it)</li>
                 <li>For <strong>subscriber_data</strong>: Click &quot;+ Add Full Contact Data&quot; and select &quot;Full Contact Data&quot;</li>
                 <li>Test the action to verify the connection</li>
               </ol>
