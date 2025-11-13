@@ -11,6 +11,28 @@ datasource db {
   directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
+// =========================================================================
+// ENUMERATIONS
+// =========================================================================
+
+enum DynamicGallerySourceType {
+  webhook
+  api
+  manual
+}
+
+enum DynamicGalleryTriggerType {
+  manual
+  webhook
+  schedule
+}
+
+enum DynamicGallerySyncStatus {
+  success
+  warning
+  failed
+}
+
 // ============================================================================
 // AUTHENTICATION & AUTHORIZATION
 // ============================================================================
@@ -137,10 +159,111 @@ model Tool {
   bookings      Booking[]
   availabilities Availability[]
   conversations  Conversation[]
+  dynamicGallery DynamicGalleryConfig?
 
   @@index([adminId])
   @@index([toolType])
   @@index([isActive])
+  @@unique([adminId, toolType])
+}
+
+// ============================================================================
+// DYNAMIC GALLERY
+// ============================================================================
+
+model DynamicGalleryConfig {
+  id               String                      @id @default(cuid())
+  toolId           String                      @unique
+  autoSyncEnabled  Boolean                     @default(true)
+  lastSyncedAt     DateTime?
+  lastWebhookAt    DateTime?
+  lastSyncStatus   DynamicGallerySyncStatus?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+
+  // Relations
+  tool      Tool                     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  snapshots DynamicGallerySnapshot[]
+  sources   DynamicGallerySource[]
+  secrets   DynamicGallerySecret[]
+  syncLogs  DynamicGallerySyncLog[]
+
+  @@index([toolId])
+}
+
+model DynamicGallerySnapshot {
+  id        String   @id @default(cuid())
+  configId  String
+  version   Int      @default(1)
+  cardCount Int      @default(0)
+  cardsJson Json
+  hash      String
+  createdAt DateTime @default(now())
+
+  // Relations
+  config DynamicGalleryConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([configId])
+  @@index([createdAt])
+  @@index([hash])
+}
+
+model DynamicGallerySource {
+  id          String                   @id @default(cuid())
+  configId    String
+  name        String
+  sourceType  DynamicGallerySourceType @default(webhook)
+  endpoint    String?
+  description String?
+  headers     Json?
+  metadata    Json?
+  isActive    Boolean                  @default(true)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  // Relations
+  config DynamicGalleryConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([configId])
+  @@index([isActive])
+  @@index([sourceType])
+}
+
+model DynamicGallerySecret {
+  id              String   @id @default(cuid())
+  configId        String
+  label           String
+  encryptedSecret String
+  lastUsedAt      DateTime?
+  createdAt       DateTime @default(now())
+  revokedAt       DateTime?
+
+  // Relations
+  config DynamicGalleryConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([configId])
+  @@index([label])
+  @@index([revokedAt])
+}
+
+model DynamicGallerySyncLog {
+  id               String                      @id @default(cuid())
+  configId         String
+  triggerType      DynamicGalleryTriggerType
+  status           DynamicGallerySyncStatus
+  cardCount        Int
+  contactsImpacted Int      @default(0)
+  durationMs       Int?
+  errorMessage     String?  @db.Text
+  createdAt        DateTime @default(now())
+
+  // Relations
+  config DynamicGalleryConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([configId])
+  @@index([triggerType])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // ============================================================================
