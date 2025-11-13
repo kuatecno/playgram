@@ -14,7 +14,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Webhook, Plus, Trash2, TestTube, Copy, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Webhook, Plus, Trash2, TestTube, Copy, AlertCircle, CheckCircle2, FileText } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface WebhookSubscription {
@@ -51,6 +52,7 @@ const AVAILABLE_EVENTS = [
 ]
 
 export default function WebhooksPage() {
+  const router = useRouter()
   const [webhooks, setWebhooks] = useState<WebhookSubscription[]>([])
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -202,10 +204,16 @@ export default function WebhooksPage() {
             Configure webhook endpoints and CRM integrations
           </p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Webhook
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => router.push('/settings/webhooks/deliveries')}>
+            <FileText className="mr-2 h-4 w-4" />
+            View Delivery Logs
+          </Button>
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Webhook
+          </Button>
+        </div>
       </div>
 
       <Alert>

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import crypto from 'crypto'
+import { emitUserCreated, emitUserUpdated } from '@/lib/webhooks/webhook-events'
 
 const MANYCHAT_API_URL = process.env.MANYCHAT_API_URL || 'https://api.manychat.com'
 
@@ -247,6 +248,15 @@ export class ManychatService {
             : await db.user.findUnique({ where: { manychatId: contact.id } })
 
           if (existingUser) {
+            // Track changes for webhook
+            const changes: Record<string, { old: any; new: any }> = {}
+            if (contact.first_name && contact.first_name !== existingUser.firstName) {
+              changes.firstName = { old: existingUser.firstName, new: contact.first_name }
+            }
+            if (contact.last_name && contact.last_name !== existingUser.lastName) {
+              changes.lastName = { old: existingUser.lastName, new: contact.last_name }
+            }
+
             // Update existing user
             await db.user.update({
               where: { id: existingUser.id },
@@ -261,9 +271,16 @@ export class ManychatService {
               },
             })
             updated++
+
+            // Emit user updated webhook if there were changes
+            if (Object.keys(changes).length > 0) {
+              emitUserUpdated(adminId, existingUser.id, changes).catch((error) => {
+                console.error('Failed to emit user updated webhook:', error)
+              })
+            }
           } else {
             // Create new user
-            await db.user.create({
+            const newUser = await db.user.create({
               data: {
                 manychatId: contact.id,
                 igUsername: contact.instagram_username,
@@ -275,6 +292,11 @@ export class ManychatService {
               },
             })
             created++
+
+            // Emit user created webhook
+            emitUserCreated(adminId, newUser.id).catch((error) => {
+              console.error('Failed to emit user created webhook:', error)
+            })
           }
 
           synced++

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { BOOKING_STATUS } from '@/config/constants'
+import { emitBookingCreated, emitBookingUpdated, emitBookingCancelled } from '@/lib/webhooks/webhook-events'
 
 export interface CreateBookingParams {
   adminId: string
@@ -103,6 +104,11 @@ export class BookingService {
       },
     })
 
+    // Emit webhook event for booking creation
+    emitBookingCreated(adminId, booking.id).catch((error) => {
+      console.error('Failed to emit booking created webhook:', error)
+    })
+
     return booking
   }
 
@@ -114,25 +120,25 @@ export class BookingService {
     adminId: string,
     params: UpdateBookingParams
   ) {
+    // Get existing booking for change tracking
+    const existingBooking = await db.booking.findFirst({
+      where: {
+        id: bookingId,
+        tool: {
+          adminId,
+        },
+      },
+    })
+
+    if (!existingBooking) {
+      throw new Error('Booking not found')
+    }
+
     // If updating scheduled time, check availability
     if (params.scheduledAt) {
-      const booking = await db.booking.findFirst({
-        where: { 
-          id: bookingId,
-          tool: {
-            adminId,
-          },
-        },
-        select: { startTime: true, endTime: true },
-      })
-
-      if (!booking) {
-        throw new Error('Booking not found')
-      }
-
       // Calculate duration from time strings
-      const [startHour, startMin] = booking.startTime.split(':').map(Number)
-      const [endHour, endMin] = booking.endTime.split(':').map(Number)
+      const [startHour, startMin] = existingBooking.startTime.split(':').map(Number)
+      const [endHour, endMin] = existingBooking.endTime.split(':').map(Number)
       const existingDuration = (endHour * 60 + endMin) - (startHour * 60 + startMin)
       const duration = params.duration || existingDuration
       const isAvailable = await this.isSlotAvailable(
@@ -147,12 +153,21 @@ export class BookingService {
       }
     }
 
+    // Track changes for webhook
+    const changes: Record<string, { old: any; new: any }> = {}
+    if (params.status && params.status !== existingBooking.status) {
+      changes.status = { old: existingBooking.status, new: params.status }
+    }
+    if (params.notes && params.notes !== existingBooking.notes) {
+      changes.notes = { old: existingBooking.notes, new: params.notes }
+    }
+
     // Update booking
     const updateData = {
       ...params,
       metadata: params.metadata ? JSON.parse(JSON.stringify(params.metadata)) : undefined,
     }
-    
+
     const updated = await db.booking.updateMany({
       where: {
         id: bookingId,
@@ -166,6 +181,11 @@ export class BookingService {
     if (updated.count === 0) {
       throw new Error('Booking not found')
     }
+
+    // Emit webhook event for booking update
+    emitBookingUpdated(adminId, bookingId, changes).catch((error) => {
+      console.error('Failed to emit booking updated webhook:', error)
+    })
 
     return { success: true }
   }
@@ -189,6 +209,11 @@ export class BookingService {
     if (updated.count === 0) {
       throw new Error('Booking not found')
     }
+
+    // Emit webhook event for booking cancellation
+    emitBookingCancelled(adminId, bookingId).catch((error) => {
+      console.error('Failed to emit booking cancelled webhook:', error)
+    })
 
     return { success: true }
   }
