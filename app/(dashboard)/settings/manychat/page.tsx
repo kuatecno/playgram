@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { RefreshCw, CheckCircle, XCircle, MessageSquare, Users, Tag } from 'lucide-react'
+import { RefreshCw, CheckCircle, XCircle, MessageSquare, Users, Tag, Webhook } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -293,6 +294,20 @@ export default function ManychatSettingsPage() {
                 <Label className="text-sm text-muted-foreground">Last Updated</Label>
                 <p className="text-sm">{new Date(config.updatedAt).toLocaleString()}</p>
               </div>
+
+              {/* Webhook Setup Button */}
+              <div className="pt-2 border-t">
+                <Link href="/settings/manychat/webhook-helper">
+                  <Button variant="default" size="sm" className="w-full">
+                    <Webhook className="mr-2 h-4 w-4" />
+                    Configure Webhook Setup
+                  </Button>
+                </Link>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Get your webhook URL and admin ID to sync contacts automatically
+                </p>
+              </div>
+
               <Dialog>
                 <DialogTrigger asChild>
                   <Button variant="destructive" size="sm">
