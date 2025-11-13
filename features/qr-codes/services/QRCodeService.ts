@@ -89,27 +89,54 @@ export class QRCodeService {
       code = this.generateUniqueCode()
     }
 
-    // Create QR code record in database
+    // Create QR code record in database with retry on collision
     // Serialize metadata to ensure JSON compatibility
     const qrMetadata = JSON.parse(JSON.stringify({ label, ...data }))
 
-    const qrCode = await db.qRCode.create({
-      data: {
-        toolId: tool.id,
-        qrType: type,
-        code,
-        metadata: qrMetadata,
-        scanCount: 0,
-        expiresAt: data.validUntil || null,
-      },
-      select: {
-        id: true,
-        qrType: true,
-        code: true,
-        metadata: true,
-        createdAt: true,
-      },
-    })
+    const MAX_RETRIES = 5
+    let qrCode: any = null
+    let lastError: Error | null = null
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        qrCode = await db.qRCode.create({
+          data: {
+            toolId: tool.id,
+            qrType: type,
+            code,
+            metadata: qrMetadata,
+            scanCount: 0,
+            expiresAt: data.validUntil || null,
+          },
+          select: {
+            id: true,
+            qrType: true,
+            code: true,
+            metadata: true,
+            createdAt: true,
+          },
+        })
+        break // Success! Exit retry loop
+      } catch (error: any) {
+        // Check if it's a unique constraint violation on code field
+        if (error.code === 'P2002' && error.meta?.target?.includes('code')) {
+          console.warn(`QR code collision detected (attempt ${attempt + 1}/${MAX_RETRIES}): ${code}`)
+          lastError = error
+
+          // Generate new code and retry
+          code = this.generateUniqueCode()
+          continue
+        }
+
+        // Different error - rethrow immediately
+        throw error
+      }
+    }
+
+    // If we exhausted retries, throw the last error
+    if (!qrCode) {
+      throw new Error(`Failed to generate unique QR code after ${MAX_RETRIES} attempts: ${lastError?.message}`)
+    }
 
     // Generate scan URL with security validation
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'
