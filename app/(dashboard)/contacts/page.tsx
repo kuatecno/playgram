@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Users, Search, TrendingUp, UserCheck, UserX, Instagram, MessageCircle, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Users, Search, TrendingUp, UserCheck, UserX, Instagram, MessageCircle, Eye, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 
 interface Contact {
   id: string
@@ -106,6 +106,96 @@ export default function ContactsPage() {
     }
   }
 
+  const exportToCSV = async () => {
+    try {
+      setLoading(true)
+
+      // Fetch all contacts with current filters (no pagination)
+      const params = new URLSearchParams()
+      if (search) params.set('search', search)
+      if (filter !== 'all') {
+        params.set('isSubscribed', filter === 'subscribed' ? 'true' : 'false')
+      }
+      params.set('limit', '10000') // Large limit to get all contacts
+
+      const response = await fetch(`/api/v1/contacts?${params.toString()}`)
+      const data = await response.json()
+
+      if (data.success && data.data.contacts.length > 0) {
+        const exportContacts = data.data.contacts
+
+        // CSV headers
+        const headers = [
+          'Full Name',
+          'First Name',
+          'Last Name',
+          'Instagram Username',
+          'Manychat ID',
+          'Follower Count',
+          'Subscription Status',
+          'Tags',
+          'Total Bookings',
+          'Total QR Scans',
+          'Total Conversations',
+          'Last Interaction',
+          'Created At',
+        ]
+
+        // CSV rows
+        const rows = exportContacts.map((contact: Contact) => [
+          contact.fullName,
+          contact.firstName || '',
+          contact.lastName || '',
+          contact.instagramUsername || '',
+          contact.manychatId || '',
+          contact.followerCount || '',
+          contact.isSubscribed ? 'Subscribed' : 'Unsubscribed',
+          contact.tags.map(t => t.name).join('; '),
+          contact.stats.bookings,
+          contact.stats.qrScans,
+          contact.stats.conversations,
+          contact.lastInteraction ? new Date(contact.lastInteraction).toLocaleString() : 'Never',
+          new Date(contact.createdAt).toLocaleString(),
+        ])
+
+        // Convert to CSV string
+        const csvContent = [
+          headers.join(','),
+          ...rows.map((row: (string | number)[]) =>
+            row.map((cell: string | number) => {
+              // Escape cells that contain commas, quotes, or newlines
+              const cellStr = String(cell)
+              if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                return `"${cellStr.replace(/"/g, '""')}"`
+              }
+              return cellStr
+            }).join(',')
+          ),
+        ].join('\n')
+
+        // Create download link
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        link.setAttribute('href', url)
+        link.setAttribute('download', `contacts_export_${new Date().toISOString().split('T')[0]}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+
+        alert(`Successfully exported ${exportContacts.length} contacts to CSV`)
+      } else {
+        alert('No contacts to export')
+      }
+    } catch (error) {
+      console.error('Error exporting contacts:', error)
+      alert('Failed to export contacts')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never'
     const date = new Date(dateString)
@@ -140,11 +230,17 @@ export default function ContactsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Contacts</h1>
-        <p className="text-muted-foreground">
-          Manage your Instagram and Manychat contacts
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Contacts</h1>
+          <p className="text-muted-foreground">
+            Manage your Instagram and Manychat contacts
+          </p>
+        </div>
+        <Button onClick={exportToCSV} disabled={loading || contacts.length === 0}>
+          <Download className="mr-2 h-4 w-4" />
+          Export to CSV
+        </Button>
       </div>
 
       {/* Stats Cards */}
