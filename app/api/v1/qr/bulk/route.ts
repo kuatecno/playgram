@@ -6,6 +6,7 @@ import { qrCodeService } from '@/features/qr-codes/services/QRCodeService'
 import { db } from '@/lib/db'
 
 const bulkGenerateSchema = z.object({
+  toolId: z.string().min(1, 'Tool ID is required'),
   type: z.enum(['promotion', 'validation', 'discount']),
   labelTemplate: z.string().min(1, 'Label template is required'),
   campaign: z.string().optional(),
@@ -61,6 +62,7 @@ export async function POST(request: NextRequest) {
         // Generate QR code
         const result = await qrCodeService.generateQRCode({
           adminId: user.id,
+          toolId: validated.toolId,
           type: validated.type,
           label,
           userId: userRecord.id,

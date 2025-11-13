@@ -180,7 +180,6 @@ model Tool {
   @@index([adminId])
   @@index([toolType])
   @@index([isActive])
-  @@unique([adminId, toolType])
 }
 
 // ============================================================================

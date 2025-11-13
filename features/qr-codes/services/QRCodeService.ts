@@ -17,6 +17,7 @@ export interface QRAppearanceSettings {
 
 export interface GenerateQRCodeParams {
   adminId: string
+  toolId: string // Required: which QR tool to generate code for
   type: 'promotion' | 'validation' | 'discount'
   label: string
   userId?: string // Optional: for personalized QR codes
@@ -61,10 +62,16 @@ export class QRCodeService {
     }
     qrCodeDataUrl: string
   }> {
-    const { adminId, type, label, data, userId } = params
+    const { adminId, toolId, type, label, data, userId } = params
 
-    // Find or create a tool for this admin
-    const { tool, config } = await qrToolConfigService.ensureToolForAdmin(adminId)
+    // Verify tool ownership
+    const tool = await qrToolConfigService.getTool(toolId, adminId)
+    if (!tool) {
+      throw new Error('Tool not found or access denied')
+    }
+
+    // Get config for the tool (ensure it exists)
+    const config = await qrToolConfigService.ensureConfigForTool(toolId)
 
     // Generate QR code based on tool-level config
     let code: string
@@ -316,21 +323,25 @@ export class QRCodeService {
   /**
    * Get QR code statistics
    */
-  async getQRCodeStats(adminId: string) {
+  async getQRCodeStats(adminId: string, toolId?: string) {
+    const whereClause = toolId
+      ? { toolId, tool: { adminId } }
+      : { tool: { adminId } }
+
     const total = await db.qRCode.count({
-      where: { tool: { adminId } },
+      where: whereClause,
     })
 
     const totalScans = await db.qRAnalytics.count({
       where: {
         event: 'scanned',
-        qrCode: { tool: { adminId } },
+        qrCode: whereClause,
       },
     })
 
     const byType = await db.qRCode.groupBy({
       by: ['qrType'],
-      where: { tool: { adminId } },
+      where: whereClause,
       _count: true,
       _sum: {
         scanCount: true,
@@ -344,7 +355,7 @@ export class QRCodeService {
     const recentScans = await db.qRAnalytics.count({
       where: {
         event: 'scanned',
-        qrCode: { tool: { adminId } },
+        qrCode: whereClause,
         timestamp: { gte: thirtyDaysAgo },
       },
     })
@@ -365,12 +376,14 @@ export class QRCodeService {
    * List QR codes for admin
    */
   async listQRCodes(adminId: string, options?: {
+    toolId?: string
     qrType?: string
     limit?: number
     offset?: number
   }) {
     const where = {
       tool: { adminId },
+      ...(options?.toolId && { toolId: options.toolId }),
       ...(options?.qrType && { qrType: options.qrType }),
     }
 

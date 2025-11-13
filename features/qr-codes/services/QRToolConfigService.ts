@@ -64,34 +64,25 @@ const DEFAULT_FIELD_MAPPING_CONFIG: QRFieldMappingConfigData = {
 
 class QRToolConfigService {
   /**
-   * Ensure a QR tool exists for the admin and return both tool and config.
-   * Uses atomic operations to prevent race conditions.
+   * Create a new QR tool with default configuration
    */
-  async ensureToolForAdmin(adminId: string): Promise<{ tool: Tool; config: QRToolConfig }> {
+  async createTool(adminId: string, name: string, description?: string): Promise<{ tool: Tool; config: QRToolConfig }> {
     return await db.$transaction(async (tx) => {
-      // Use upsert to atomically ensure tool exists
-      const tool = await tx.tool.upsert({
-        where: {
-          adminId_toolType: {
-            adminId,
-            toolType: 'qr',
-          },
-        },
-        create: {
+      // Create the tool
+      const tool = await tx.tool.create({
+        data: {
           adminId,
           toolType: 'qr',
-          name: 'QR Code Generator',
-          description: 'Generate and manage QR codes',
+          name,
+          description: description || '',
           settings: {},
           isActive: true,
         },
-        update: {}, // No updates needed if exists
       })
 
-      // Use upsert to atomically ensure config exists
-      const config = await tx.qRToolConfig.upsert({
-        where: { toolId: tool.id },
-        create: {
+      // Create default config for the tool
+      const config = await tx.qRToolConfig.create({
+        data: {
           toolId: tool.id,
           formatPattern: null,
           fallbackUrl: null,
@@ -100,10 +91,72 @@ class QRToolConfigService {
           securityPolicy: {},
           metadata: {},
         },
-        update: {}, // No updates needed if exists
       })
 
       return { tool, config }
+    })
+  }
+
+  /**
+   * List all QR tools for an admin
+   */
+  async listTools(adminId: string): Promise<Tool[]> {
+    return await db.tool.findMany({
+      where: {
+        adminId,
+        toolType: 'qr',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    })
+  }
+
+  /**
+   * Get a specific QR tool by ID with ownership verification
+   */
+  async getTool(toolId: string, adminId: string): Promise<Tool | null> {
+    return await db.tool.findFirst({
+      where: {
+        id: toolId,
+        adminId,
+        toolType: 'qr',
+      },
+    })
+  }
+
+  /**
+   * Update tool metadata (name, description, isActive)
+   */
+  async updateToolMetadata(
+    toolId: string,
+    adminId: string,
+    updates: { name?: string; description?: string; isActive?: boolean }
+  ): Promise<Tool> {
+    // Verify ownership
+    const tool = await this.getTool(toolId, adminId)
+    if (!tool) {
+      throw new Error('Tool not found or access denied')
+    }
+
+    return await db.tool.update({
+      where: { id: toolId },
+      data: updates,
+    })
+  }
+
+  /**
+   * Delete a QR tool (cascades to config and QR codes)
+   */
+  async deleteTool(toolId: string, adminId: string): Promise<void> {
+    // Verify ownership
+    const tool = await this.getTool(toolId, adminId)
+    if (!tool) {
+      throw new Error('Tool not found or access denied')
+    }
+
+    await db.tool.delete({
+      where: { id: toolId },
     })
   }
 

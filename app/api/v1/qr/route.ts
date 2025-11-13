@@ -5,6 +5,7 @@ import { apiResponse } from '@/lib/utils/api-response'
 import { qrCodeService } from '@/features/qr-codes/services/QRCodeService'
 
 const generateQRSchema = z.object({
+  toolId: z.string().min(1, 'Tool ID is required'),
   type: z.enum(['promotion', 'validation', 'discount']),
   label: z.string().min(1, 'Label is required'),
   userId: z.string().optional(),
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
     const user = await requireAuth()
     const { searchParams } = request.nextUrl
 
+    const toolId = searchParams.get('toolId') || undefined
     const qrType = searchParams.get('type') || undefined
     const limit = searchParams.get('limit')
       ? parseInt(searchParams.get('limit')!)
@@ -36,6 +38,7 @@ export async function GET(request: NextRequest) {
       : 0
 
     const result = await qrCodeService.listQRCodes(user.id, {
+      toolId,
       qrType,
       limit,
       offset,
@@ -70,6 +73,7 @@ export async function POST(request: NextRequest) {
     // Generate QR code
     const result = await qrCodeService.generateQRCode({
       adminId: user.id,
+      toolId: validated.toolId,
       type: validated.type,
       label: validated.label,
       userId: validated.userId,
