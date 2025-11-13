@@ -66,18 +66,18 @@ export async function POST(
 
     const summary = await dynamicGalleryService.getSummary(tool.adminId)
 
-    // If auto-sync is enabled and cards were updated, trigger sync
-    if (summary.config.autoSyncEnabled && result.created) {
-      // Run sync in background without awaiting
-      dynamicGalleryService
-        .syncToManychat(tool.adminId, {
-          trigger: 'webhook',
-          snapshotId: result.snapshotId,
-        })
-        .catch((error) => {
-          console.error('Background sync failed:', error)
-        })
-    }
+    // Temporarily disabled auto-sync to prevent connection pool exhaustion
+    // TODO: Re-enable after implementing job queue
+    // if (summary.config.autoSyncEnabled && result.created) {
+    //   dynamicGalleryService
+    //     .syncToManychat(tool.adminId, {
+    //       trigger: 'webhook',
+    //       snapshotId: result.snapshotId,
+    //     })
+    //     .catch((error) => {
+    //       console.error('Background sync failed:', error)
+    //       })
+    // }
 
     return apiResponse.success({
       snapshotId: result.snapshotId,
