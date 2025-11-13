@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/auth/session'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, QrCode, Calendar, MessageSquare } from 'lucide-react'
+import Link from 'next/link'
 
 export default async function DashboardPage() {
   const user = await getCurrentUser()
@@ -71,30 +72,30 @@ export default async function DashboardPage() {
           <CardDescription>Get started with common tasks</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
-          <a
+          <Link
             href="/qr-codes"
             className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors hover:border-primary hover:bg-primary/5"
           >
             <QrCode className="mb-2 h-8 w-8" />
             <h3 className="font-medium">Generate QR Code</h3>
             <p className="text-xs text-muted-foreground">Create a new QR code campaign</p>
-          </a>
-          <a
+          </Link>
+          <Link
             href="/bookings"
             className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors hover:border-primary hover:bg-primary/5"
           >
             <Calendar className="mb-2 h-8 w-8" />
             <h3 className="font-medium">Create Booking</h3>
             <p className="text-xs text-muted-foreground">Schedule a new appointment</p>
-          </a>
-          <a
+          </Link>
+          <Link
             href="/contacts"
             className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors hover:border-primary hover:bg-primary/5"
           >
             <Users className="mb-2 h-8 w-8" />
             <h3 className="font-medium">Sync Contacts</h3>
             <p className="text-xs text-muted-foreground">Import from Manychat</p>
-          </a>
+          </Link>
         </CardContent>
       </Card>
 
