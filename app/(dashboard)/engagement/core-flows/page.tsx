@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,16 +12,104 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CORE_FLOWS, CoreFlow, getCoreFlowsByCategory, getAllCoreFlowFields } from '@/lib/core-flows';
-import { Copy, Check, ChevronRight, Info, Zap, TrendingUp, Gift, Users } from 'lucide-react';
+import { Copy, Check, ChevronRight, Info, Zap, TrendingUp, Gift, Users, Plus, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function CoreFlowsPage() {
   const [selectedFlow, setSelectedFlow] = useState<CoreFlow | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [existingFields, setExistingFields] = useState<any[]>([]);
+  const [loadingFields, setLoadingFields] = useState(false);
+  const [creatingField, setCreatingField] = useState<string | null>(null);
+  const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const trackingFlows = getCoreFlowsByCategory('tracking');
   const marketingFlows = getCoreFlowsByCategory('marketing');
   const allFields = getAllCoreFlowFields();
+
+  useEffect(() => {
+    loadManychatFields();
+  }, []);
+
+  const loadManychatFields = async () => {
+    setLoadingFields(true);
+    setError('');
+    try {
+      const response = await fetch('/api/v1/manychat/fields');
+      if (!response.ok) throw new Error('Failed to load Manychat fields');
+      const result = await response.json();
+      const fields = result.data || [];
+      setExistingFields(fields);
+
+      // Auto-map fields by name
+      const mappings: Record<string, string> = {};
+      allFields.forEach((field) => {
+        const match = fields.find((f: any) => f.name === field.name);
+        if (match) {
+          mappings[field.name] = field.name;
+        }
+      });
+      setFieldMappings(mappings);
+    } catch (err: any) {
+      console.error('Failed to load fields:', err);
+    } finally {
+      setLoadingFields(false);
+    }
+  };
+
+  const createCustomField = async (fieldName: string, fieldType: string) => {
+    setCreatingField(fieldName);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await fetch('/api/v1/manychat/fields', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: fieldName,
+          type: fieldType,
+          description: `Playgram tracker: ${fieldName}`,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create field');
+      }
+
+      setSuccess(`Created "${fieldName}" successfully!`);
+      setTimeout(() => setSuccess(''), 3000);
+
+      // Reload fields
+      await loadManychatFields();
+
+      // Update mapping
+      setFieldMappings((prev) => ({
+        ...prev,
+        [fieldName]: fieldName,
+      }));
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setCreatingField(null);
+    }
+  };
+
+  const getFieldStatus = (fieldName: string): 'matched' | 'remapped' | 'unmapped' => {
+    const mapping = fieldMappings[fieldName];
+    if (!mapping) return 'unmapped';
+    return mapping === fieldName ? 'matched' : 'remapped';
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -162,6 +250,20 @@ export default function CoreFlowsPage() {
 
               <div className="max-h-[60vh] overflow-y-auto">
                 <div className="space-y-6 pr-4">
+                  {/* Error/Success Messages */}
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                  {success && (
+                    <Alert>
+                      <CheckCircle2 className="h-4 w-4" />
+                      <AlertDescription>{success}</AlertDescription>
+                    </Alert>
+                  )}
+
                   {/* Trigger */}
                   <div>
                     <h3 className="font-semibold mb-2">Trigger</h3>
@@ -171,37 +273,120 @@ export default function CoreFlowsPage() {
                     </div>
                   </div>
 
-                  {/* Custom Fields */}
+                  {/* Custom Fields Setup */}
                   <div>
-                    <h3 className="font-semibold mb-2">Custom Fields Required</h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">Custom Fields Setup</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadManychatFields}
+                        disabled={loadingFields}
+                      >
+                        {loadingFields ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                        <span className="ml-2">Refresh</span>
+                      </Button>
+                    </div>
                     <div className="space-y-2">
-                      {selectedFlow.customFields.map((field) => (
-                        <div key={field.name} className="bg-muted p-3 rounded-lg">
-                          <div className="flex items-center justify-between mb-1">
-                            <code className="text-sm font-mono">{field.name}</code>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">{field.type}</Badge>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => copyToClipboard(field.name)}
-                              >
-                                {copiedField === field.name ? (
-                                  <Check className="h-3 w-3 text-green-500" />
-                                ) : (
-                                  <Copy className="h-3 w-3" />
+                      {selectedFlow.customFields.map((field) => {
+                        const existingField = existingFields.find((f) => f.name === field.name);
+                        const status = getFieldStatus(field.name);
+
+                        return (
+                          <div key={field.name} className="border rounded-lg p-3 space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                                    {field.name}
+                                  </code>
+                                  <Badge variant="outline" className="text-xs">{field.type}</Badge>
+                                  {status === 'matched' && (
+                                    <Badge className="text-xs bg-green-500">
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Ready
+                                    </Badge>
+                                  )}
+                                  {status === 'remapped' && (
+                                    <Badge className="text-xs bg-blue-500">
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Mapped
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">{field.description}</p>
+                                {field.defaultValue !== undefined && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Default: {String(field.defaultValue)}
+                                  </p>
                                 )}
-                              </Button>
+                              </div>
                             </div>
+
+                            {!existingField ? (
+                              <div className="space-y-3">
+                                <Button
+                                  size="sm"
+                                  onClick={() => createCustomField(field.name, field.type)}
+                                  disabled={creatingField === field.name}
+                                >
+                                  {creatingField === field.name ? (
+                                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Plus className="h-4 w-4 mr-2" />
+                                  )}
+                                  Create in Manychat
+                                </Button>
+
+                                {existingFields.length > 0 && (
+                                  <div className="space-y-2">
+                                    <label className="text-xs text-muted-foreground">
+                                      Or map to existing field:
+                                    </label>
+                                    <Select
+                                      value={fieldMappings[field.name] || ''}
+                                      onValueChange={(value) => {
+                                        setFieldMappings((prev) => ({
+                                          ...prev,
+                                          [field.name]: value,
+                                        }));
+                                      }}
+                                    >
+                                      <SelectTrigger className="text-xs">
+                                        <SelectValue placeholder="Select existing field..." />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {existingFields
+                                          .filter((f) => f.type === field.type)
+                                          .map((f) => (
+                                            <SelectItem
+                                              key={f.id}
+                                              value={f.name}
+                                              className="text-xs"
+                                            >
+                                              {f.name}
+                                            </SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                <span className="text-sm text-green-700 dark:text-green-400">
+                                  Field exists in Manychat
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          <p className="text-sm text-muted-foreground">{field.description}</p>
-                          {field.defaultValue !== undefined && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Default: {String(field.defaultValue)}
-                            </p>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
