@@ -1,0 +1,521 @@
+/**
+ * Core Playgram Flows
+ * Pre-built engagement tracking templates for common Instagram use cases
+ *
+ * These are standard Manychat custom fields with recommended naming conventions
+ * and setup instructions. They work just like any other custom field.
+ */
+
+export interface CoreFlow {
+  id: string;
+  name: string;
+  description: string;
+  category: 'engagement' | 'tracking' | 'marketing' | 'support';
+  trigger: {
+    type: 'story_share' | 'story_reply' | 'comment' | 'message' | 'keyword';
+    description: string;
+  };
+  customFields: {
+    name: string; // Standard playgram naming convention
+    type: 'number' | 'text' | 'date' | 'boolean';
+    description: string;
+    defaultValue?: any;
+    manychatFieldId?: string; // Will be populated when created
+  }[];
+  actions: {
+    step: number;
+    type: 'increment' | 'set_field' | 'send_message' | 'tag' | 'external_request';
+    description: string;
+    config: any;
+  }[];
+  setupInstructions: string[];
+}
+
+export const CORE_FLOWS: CoreFlow[] = [
+  {
+    id: 'story-share-tracker',
+    name: '📊 Story Share Tracker',
+    description: 'Track how many times users share your posts/reels as Instagram stories',
+    category: 'tracking',
+    trigger: {
+      type: 'story_share',
+      description: 'When user shares your Post or Reel as a Story',
+    },
+    customFields: [
+      {
+        name: 'playgram_shares_count',
+        type: 'number',
+        description: 'Total number of story shares by this user',
+        defaultValue: 0,
+      },
+    ],
+    actions: [
+      {
+        step: 1,
+        type: 'increment',
+        description: 'Increase share count by 1',
+        config: {
+          field: 'playgram_shares_count',
+          operation: 'add',
+          value: 1,
+        },
+      },
+      {
+        step: 2,
+        type: 'send_message',
+        description: 'Thank user for sharing',
+        config: {
+          message: '🎉 Thanks for sharing! You\'ve shared {{playgram_shares_count}} times.',
+        },
+      },
+    ],
+    setupInstructions: [
+      '1. Go to Automation → Instagram → Post or Reel Share',
+      '2. Create trigger: "User shares your Post or Reel as a Story"',
+      '3. Add Action: "Set User Field"',
+      '4. Select field: playgram_shares_count',
+      '5. Operation: "Increase by 1"',
+      '6. Add Action: "Send Message" (optional thank you message)',
+    ],
+  },
+  {
+    id: 'story-reply-tracker',
+    name: '💬 Story Reply Tracker',
+    description: 'Track how many times users reply to your Instagram stories',
+    category: 'tracking',
+    trigger: {
+      type: 'story_reply',
+      description: 'When user replies to your Instagram Story',
+    },
+    customFields: [
+      {
+        name: 'playgram_story_replies_count',
+        type: 'number',
+        description: 'Total number of story replies by this user',
+        defaultValue: 0,
+      },
+    ],
+    actions: [
+      {
+        step: 1,
+        type: 'increment',
+        description: 'Increase story reply count by 1',
+        config: {
+          field: 'playgram_story_replies_count',
+          operation: 'add',
+          value: 1,
+        },
+      },
+      {
+        step: 2,
+        type: 'send_message',
+        description: 'Respond to user',
+        config: {
+          message: '👋 Thanks for your reply! Total replies: {{playgram_story_replies_count}}',
+        },
+      },
+    ],
+    setupInstructions: [
+      '1. Go to Automation → Instagram → Story Reply',
+      '2. Create trigger: "User replies to your Story"',
+      '3. Add Action: "Set User Field"',
+      '4. Select field: playgram_story_replies_count',
+      '5. Operation: "Increase by 1"',
+      '6. Add Action: "Send Message" (optional response)',
+    ],
+  },
+  {
+    id: 'comment-tracker',
+    name: '💭 Comment Tracker',
+    description: 'Track how many times users comment on your Instagram posts',
+    category: 'tracking',
+    trigger: {
+      type: 'comment',
+      description: 'When user comments on your Instagram post',
+    },
+    customFields: [
+      {
+        name: 'playgram_comments_count',
+        type: 'number',
+        description: 'Total number of comments by this user',
+        defaultValue: 0,
+      },
+    ],
+    actions: [
+      {
+        step: 1,
+        type: 'increment',
+        description: 'Increase comment count by 1',
+        config: {
+          field: 'playgram_comments_count',
+          operation: 'add',
+          value: 1,
+        },
+      },
+      {
+        step: 2,
+        type: 'send_message',
+        description: 'Thank user for commenting',
+        config: {
+          message: '💬 Thanks for commenting! Total comments: {{playgram_comments_count}}',
+        },
+      },
+    ],
+    setupInstructions: [
+      '1. Go to Automation → Instagram → Comment',
+      '2. Create trigger: "User comments on your post"',
+      '3. Add Action: "Set User Field"',
+      '4. Select field: playgram_comments_count',
+      '5. Operation: "Increase by 1"',
+      '6. Add Action: "Send Message" (optional thank you)',
+    ],
+  },
+  {
+    id: 'dm-tracker',
+    name: '✉️ Direct Message Tracker',
+    description: 'Track how many times users send you direct messages',
+    category: 'tracking',
+    trigger: {
+      type: 'message',
+      description: 'When user sends a direct message',
+    },
+    customFields: [
+      {
+        name: 'playgram_messages_count',
+        type: 'number',
+        description: 'Total number of DMs sent by this user',
+        defaultValue: 0,
+      },
+    ],
+    actions: [
+      {
+        step: 1,
+        type: 'increment',
+        description: 'Increase DM count by 1',
+        config: {
+          field: 'playgram_messages_count',
+          operation: 'add',
+          value: 1,
+        },
+      },
+    ],
+    setupInstructions: [
+      '1. Go to Automation → Instagram → Message',
+      '2. Create trigger: "User sends any message"',
+      '3. Add Action: "Set User Field"',
+      '4. Select field: playgram_messages_count',
+      '5. Operation: "Increase by 1"',
+    ],
+  },
+  {
+    id: 'total-engagement-tracker',
+    name: '📈 Total Engagement Tracker',
+    description: 'Track total engagement across all Instagram interactions',
+    category: 'tracking',
+    trigger: {
+      type: 'story_share',
+      description: 'Any engagement trigger (shares, replies, comments, messages)',
+    },
+    customFields: [
+      {
+        name: 'playgram_total_engagement',
+        type: 'number',
+        description: 'Total engagement count (shares + replies + comments + DMs)',
+        defaultValue: 0,
+      },
+      {
+        name: 'playgram_last_interaction',
+        type: 'date',
+        description: 'Timestamp of last interaction',
+      },
+    ],
+    actions: [
+      {
+        step: 1,
+        type: 'increment',
+        description: 'Increase total engagement by 1',
+        config: {
+          field: 'playgram_total_engagement',
+          operation: 'add',
+          value: 1,
+        },
+      },
+      {
+        step: 2,
+        type: 'set_field',
+        description: 'Update last interaction timestamp',
+        config: {
+          field: 'playgram_last_interaction',
+          value: '{{current_datetime}}',
+        },
+      },
+    ],
+    setupInstructions: [
+      '1. Add this action to ALL engagement triggers (shares, replies, comments, messages)',
+      '2. Add Action: "Set User Field"',
+      '3. Select field: playgram_total_engagement',
+      '4. Operation: "Increase by 1"',
+      '5. Add Action: "Set User Field"',
+      '6. Select field: playgram_last_interaction',
+      '7. Value: {{current_datetime}}',
+    ],
+  },
+  {
+    id: 'engagement-milestone',
+    name: '🏆 Engagement Milestone Rewards',
+    description: 'Reward users when they hit engagement milestones (5, 10, 25, 50 interactions)',
+    category: 'marketing',
+    trigger: {
+      type: 'story_share',
+      description: 'Any engagement trigger',
+    },
+    customFields: [
+      {
+        name: 'playgram_total_engagement',
+        type: 'number',
+        description: 'Total engagement count',
+        defaultValue: 0,
+      },
+      {
+        name: 'playgram_milestone_5',
+        type: 'boolean',
+        description: 'Whether 5-engagement milestone was reached',
+        defaultValue: false,
+      },
+      {
+        name: 'playgram_milestone_10',
+        type: 'boolean',
+        description: 'Whether 10-engagement milestone was reached',
+        defaultValue: false,
+      },
+      {
+        name: 'playgram_milestone_25',
+        type: 'boolean',
+        description: 'Whether 25-engagement milestone was reached',
+        defaultValue: false,
+      },
+      {
+        name: 'playgram_milestone_50',
+        type: 'boolean',
+        description: 'Whether 50-engagement milestone was reached',
+        defaultValue: false,
+      },
+    ],
+    actions: [
+      {
+        step: 1,
+        type: 'increment',
+        description: 'Increase total engagement',
+        config: {
+          field: 'playgram_total_engagement',
+          operation: 'add',
+          value: 1,
+        },
+      },
+      {
+        step: 2,
+        type: 'send_message',
+        description: 'Send milestone reward (with conditions)',
+        config: {
+          conditions: [
+            'playgram_total_engagement == 5 AND playgram_milestone_5 == false',
+            'playgram_total_engagement == 10 AND playgram_milestone_10 == false',
+            'playgram_total_engagement == 25 AND playgram_milestone_25 == false',
+            'playgram_total_engagement == 50 AND playgram_milestone_50 == false',
+          ],
+        },
+      },
+    ],
+    setupInstructions: [
+      '1. Create all milestone custom fields (playgram_milestone_5, etc.)',
+      '2. On each engagement trigger, increase playgram_total_engagement by 1',
+      '3. Add conditions to check milestones:',
+      '   - IF playgram_total_engagement == 5 AND playgram_milestone_5 == false',
+      '   - THEN send reward message and set playgram_milestone_5 = true',
+      '4. Repeat for 10, 25, 50 milestones',
+      '5. Consider connecting to Dynamic Gallery for visual rewards',
+    ],
+  },
+  {
+    id: 'first-time-engagement-reward',
+    name: '🎁 First Time Engagement Rewards',
+    description: 'Send special rewards when users engage for the first time',
+    category: 'marketing',
+    trigger: {
+      type: 'story_share',
+      description: 'First story share, reply, or comment',
+    },
+    customFields: [
+      {
+        name: 'playgram_first_share_rewarded',
+        type: 'boolean',
+        description: 'Whether user received first share reward',
+        defaultValue: false,
+      },
+      {
+        name: 'playgram_first_reply_rewarded',
+        type: 'boolean',
+        description: 'Whether user received first reply reward',
+        defaultValue: false,
+      },
+      {
+        name: 'playgram_first_comment_rewarded',
+        type: 'boolean',
+        description: 'Whether user received first comment reward',
+        defaultValue: false,
+      },
+    ],
+    actions: [
+      {
+        step: 1,
+        type: 'send_message',
+        description: 'Send first-time reward with Dynamic Gallery',
+        config: {
+          message: '🎉 First time sharing! Here\'s something special for you!',
+          condition: 'playgram_first_share_rewarded == false',
+        },
+      },
+      {
+        step: 2,
+        type: 'set_field',
+        description: 'Mark as rewarded',
+        config: {
+          field: 'playgram_first_share_rewarded',
+          value: true,
+        },
+      },
+    ],
+    setupInstructions: [
+      '1. Go to each engagement trigger (share, reply, comment)',
+      '2. Add Condition: IF playgram_first_X_rewarded == false',
+      '3. Add Action: Send reward message (or Dynamic Gallery content)',
+      '4. Add Action: Set playgram_first_X_rewarded = true',
+      '5. This ensures reward is only sent once',
+    ],
+  },
+  {
+    id: 'vip-tier-system',
+    name: '👑 VIP Tier System',
+    description: 'Automatically assign VIP tiers based on engagement levels',
+    category: 'marketing',
+    trigger: {
+      type: 'story_share',
+      description: 'Any engagement trigger',
+    },
+    customFields: [
+      {
+        name: 'playgram_total_engagement',
+        type: 'number',
+        description: 'Total engagement count',
+        defaultValue: 0,
+      },
+      {
+        name: 'playgram_vip_tier',
+        type: 'text',
+        description: 'Current VIP tier (bronze/silver/gold/platinum)',
+      },
+    ],
+    actions: [
+      {
+        step: 1,
+        type: 'increment',
+        description: 'Increase engagement',
+        config: {
+          field: 'playgram_total_engagement',
+          operation: 'add',
+          value: 1,
+        },
+      },
+      {
+        step: 2,
+        type: 'set_field',
+        description: 'Update VIP tier based on engagement',
+        config: {
+          conditions: [
+            'IF playgram_total_engagement >= 50 THEN set playgram_vip_tier = platinum',
+            'IF playgram_total_engagement >= 25 THEN set playgram_vip_tier = gold',
+            'IF playgram_total_engagement >= 10 THEN set playgram_vip_tier = silver',
+            'IF playgram_total_engagement >= 5 THEN set playgram_vip_tier = bronze',
+          ],
+        },
+      },
+    ],
+    setupInstructions: [
+      '1. Create playgram_vip_tier text field',
+      '2. On each engagement trigger:',
+      '3. Increase playgram_total_engagement',
+      '4. Add conditions to update tier:',
+      '   - IF >= 50: Set to "platinum"',
+      '   - ELSE IF >= 25: Set to "gold"',
+      '   - ELSE IF >= 10: Set to "silver"',
+      '   - ELSE IF >= 5: Set to "bronze"',
+      '5. Use {{playgram_vip_tier}} in messages for personalization',
+    ],
+  },
+];
+
+export function getCoreFlowById(id: string): CoreFlow | undefined {
+  return CORE_FLOWS.find((flow) => flow.id === id);
+}
+
+export function getCoreFlowsByCategory(category: CoreFlow['category']): CoreFlow[] {
+  return CORE_FLOWS.filter((flow) => flow.category === category);
+}
+
+export function getAllCustomFieldNames(): string[] {
+  const fields = new Set<string>();
+  CORE_FLOWS.forEach((flow) => {
+    flow.customFields.forEach((field) => {
+      fields.add(field.name);
+    });
+  });
+  return Array.from(fields);
+}
+
+/**
+ * Check if a custom field name is a Core Flow tracker field
+ */
+export function isCoreFlowField(fieldName: string): boolean {
+  return fieldName.startsWith('playgram_');
+}
+
+/**
+ * Get the Core Flow associated with a field name
+ */
+export function getCoreFlowByFieldName(fieldName: string): CoreFlow | undefined {
+  return CORE_FLOWS.find((flow) =>
+    flow.customFields.some((field) => field.name === fieldName)
+  );
+}
+
+/**
+ * Get tracker field details
+ */
+export function getTrackerFieldInfo(fieldName: string) {
+  const flow = getCoreFlowByFieldName(fieldName);
+  if (!flow) return null;
+
+  const field = flow.customFields.find((f) => f.name === fieldName);
+  return {
+    flow,
+    field,
+    icon: flow.name.split(' ')[0], // Get emoji from flow name
+  };
+}
+
+/**
+ * Get all unique custom fields across all flows
+ */
+export function getAllCoreFlowFields() {
+  const fieldsMap = new Map<string, CoreFlow['customFields'][0]>();
+
+  CORE_FLOWS.forEach((flow) => {
+    flow.customFields.forEach((field) => {
+      if (!fieldsMap.has(field.name)) {
+        fieldsMap.set(field.name, field);
+      }
+    });
+  });
+
+  return Array.from(fieldsMap.values());
+}

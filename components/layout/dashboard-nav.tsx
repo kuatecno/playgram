@@ -16,6 +16,7 @@ import {
   Image,
   Calendar,
   MessageSquare,
+  Zap,
 } from 'lucide-react'
 
 interface DashboardNavProps {
@@ -32,6 +33,7 @@ const navigation = [
     name: 'Engagement',
     icon: Target,
     children: [
+      { name: 'Core Flows', href: '/engagement/core-flows', icon: Zap },
       { name: 'QR Codes', href: '/engagement/qr-codes', icon: QrCode },
       { name: 'Dynamic Gallery', href: '/engagement/dynamic-gallery', icon: Image },
       { name: 'Bookings', href: '/engagement/bookings', icon: Calendar },
