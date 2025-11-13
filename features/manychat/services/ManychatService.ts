@@ -448,6 +448,30 @@ export class ManychatService {
   }
 
   /**
+   * Set custom field value for contact with pre-fetched token
+   * Use this for batch operations to avoid repeated DB queries
+   */
+  async setCustomFieldWithToken(
+    apiToken: string,
+    subscriberId: string,
+    fieldId: string,
+    value: any
+  ): Promise<void> {
+    await this.makeRequest(
+      '/fb/subscriber/setCustomField',
+      apiToken,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          subscriber_id: subscriberId,
+          field_id: fieldId,
+          field_value: value,
+        }),
+      }
+    )
+  }
+
+  /**
    * Disconnect Manychat
    */
   async disconnect(adminId: string): Promise<void> {

@@ -66,18 +66,26 @@ export async function POST(
 
     const summary = await dynamicGalleryService.getSummary(tool.adminId)
 
-    // Temporarily disabled auto-sync to prevent connection pool exhaustion
-    // TODO: Re-enable after implementing job queue
-    // if (summary.config.autoSyncEnabled && result.created) {
-    //   dynamicGalleryService
-    //     .syncToManychat(tool.adminId, {
-    //       trigger: 'webhook',
-    //       snapshotId: result.snapshotId,
-    //     })
-    //     .catch((error) => {
-    //       console.error('Background sync failed:', error)
-    //       })
-    // }
+    // Auto-sync with safeguards: only trigger if enabled, new content, and contact count is manageable
+    if (summary.config.autoSyncEnabled && result.created) {
+      // Count contacts to ensure we don't overwhelm the system
+      const contactCount = await db.user.count({
+        where: { isSubscribed: true }
+      })
+
+      // Only auto-sync for small contact lists (≤ 10 contacts)
+      // For larger lists, users should manually trigger sync
+      if (contactCount <= 10) {
+        dynamicGalleryService
+          .syncToManychat(tool.adminId, {
+            trigger: 'webhook',
+            snapshotId: result.snapshotId,
+          })
+          .catch((error) => {
+            console.error('Background sync failed:', error)
+          })
+      }
+    }
 
     return apiResponse.success({
       snapshotId: result.snapshotId,

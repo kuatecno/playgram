@@ -307,6 +307,7 @@ export class DynamicGalleryService {
 
     const cards = snapshot.cardsJson as DynamicGalleryCardList
 
+    // Fetch API token once and cache it for all operations
     const apiToken = await manychatService.getApiToken(adminId)
     if (!apiToken) {
       throw new Error('ManyChat not connected')
@@ -329,8 +330,8 @@ export class DynamicGalleryService {
     const start = Date.now()
     let updatedCount = 0
 
-    // Batch contacts into chunks to avoid overwhelming the connection pool
-    const CHUNK_SIZE = 5 // Process 5 contacts at a time
+    // Batch contacts into smaller chunks to avoid overwhelming the connection pool
+    const CHUNK_SIZE = 2 // Process 2 contacts at a time for safety
     const contactChunks = []
     for (let i = 0; i < targetContactIds.length; i += CHUNK_SIZE) {
       contactChunks.push(targetContactIds.slice(i, i + CHUNK_SIZE))
@@ -348,32 +349,37 @@ export class DynamicGalleryService {
             const card = cards[index]
             const baseField = `playgram_gallery_${index + 1}`
 
-            fieldUpdates.push(manychatService.setCustomField(adminId, contactId, `${baseField}_image_url`, card.imageUrl))
-            fieldUpdates.push(manychatService.setCustomField(adminId, contactId, `${baseField}_title`, card.title))
-            fieldUpdates.push(manychatService.setCustomField(adminId, contactId, `${baseField}_subtitle`, card.subtitle))
+            fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${baseField}_image_url`, card.imageUrl))
+            fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${baseField}_title`, card.title))
+            fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${baseField}_subtitle`, card.subtitle))
 
             // Update button fields
             for (let buttonIndex = 0; buttonIndex < card.buttons.length; buttonIndex++) {
               const button = card.buttons[buttonIndex]
               const buttonField = `${baseField}_button_${buttonIndex + 1}`
 
-              fieldUpdates.push(manychatService.setCustomField(adminId, contactId, `${buttonField}_title`, button.title))
+              fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${buttonField}_title`, button.title))
               if (button.url) {
-                fieldUpdates.push(manychatService.setCustomField(adminId, contactId, `${buttonField}_url`, button.url))
+                fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${buttonField}_url`, button.url))
               }
               if (button.value) {
-                fieldUpdates.push(manychatService.setCustomField(adminId, contactId, `${buttonField}_value`, button.value))
+                fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${buttonField}_value`, button.value))
               }
-              fieldUpdates.push(manychatService.setCustomField(adminId, contactId, `${buttonField}_type`, button.type))
+              fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${buttonField}_type`, button.type))
             }
           }
 
           // Update metadata fields
-          fieldUpdates.push(manychatService.setCustomField(adminId, contactId, 'playgram_gallery_active_count', cards.length))
-          fieldUpdates.push(manychatService.setCustomField(adminId, contactId, 'playgram_gallery_last_updated_iso', new Date().toISOString()))
+          fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, 'playgram_gallery_active_count', cards.length))
+          fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, 'playgram_gallery_last_updated_iso', new Date().toISOString()))
 
-          // Execute all field updates for this contact in parallel
-          await Promise.all(fieldUpdates)
+          // Execute all field updates for this contact in parallel with timeout
+          await Promise.race([
+            Promise.all(fieldUpdates),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Contact update timeout')), 30000)
+            )
+          ])
           return true
         } catch (error) {
           console.error(`Failed to update contact ${contactId}:`, error)
@@ -384,6 +390,11 @@ export class DynamicGalleryService {
       // Wait for this chunk to complete before moving to next
       const results = await Promise.all(chunkPromises)
       updatedCount += results.filter(Boolean).length
+
+      // Add delay between chunks to prevent overwhelming the system
+      if (contactChunks.indexOf(chunk) < contactChunks.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 200))
+      }
     }
 
     const duration = Date.now() - start
