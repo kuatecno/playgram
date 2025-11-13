@@ -6,6 +6,7 @@ import {
   DEFAULT_QR_APPEARANCE,
   type UpdateQRToolConfigInput,
 } from '@/features/qr-codes/services/QRToolConfigService'
+import { isValidRedirectUrl, getAllowedDomains } from '@/lib/security/url-validator'
 
 /**
  * GET /api/v1/qr/tool-settings?toolId=xxx
@@ -97,6 +98,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (fallbackUrl !== undefined) {
+      // Validate fallback URL for security (prevent open redirect)
+      if (fallbackUrl && !isValidRedirectUrl(fallbackUrl)) {
+        return NextResponse.json(
+          {
+            error: 'Invalid fallback URL',
+            details: `URL must be on one of the allowed domains: ${getAllowedDomains().join(', ')}`
+          },
+          { status: 400 }
+        )
+      }
       updateInput.fallbackUrl = fallbackUrl || null
     }
 

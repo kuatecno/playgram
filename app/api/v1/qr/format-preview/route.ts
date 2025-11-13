@@ -6,6 +6,7 @@ import {
   fetchUserDataForQR,
 } from '@/features/qr-codes/services/QRFormatResolver'
 import { qrToolConfigService } from '@/features/qr-codes/services/QRToolConfigService'
+import { db } from '@/lib/db'
 
 /**
  * POST /api/v1/qr/format-preview
@@ -13,7 +14,7 @@ import { qrToolConfigService } from '@/features/qr-codes/services/QRToolConfigSe
  */
 export async function POST(req: NextRequest) {
   try {
-    await requireAuth()
+    const user = await requireAuth()
 
     const body = await req.json()
     const { pattern, toolId, userId, metadata } = body
@@ -21,6 +22,22 @@ export async function POST(req: NextRequest) {
     let formatPattern = pattern as string | undefined
 
     if (!formatPattern && toolId) {
+      // Verify tool ownership when toolId is provided
+      const tool = await db.tool.findFirst({
+        where: {
+          id: toolId,
+          adminId: user.id,
+        },
+        select: { id: true },
+      })
+
+      if (!tool) {
+        return NextResponse.json(
+          { error: 'Tool not found or access denied' },
+          { status: 404 }
+        )
+      }
+
       const config = await qrToolConfigService.getConfig(toolId)
       formatPattern = config?.formatPattern || undefined
     }

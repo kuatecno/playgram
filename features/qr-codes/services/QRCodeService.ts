@@ -5,6 +5,7 @@ import { resolveQRCodeFormat, fetchUserDataForQR } from './QRFormatResolver'
 import { syncQRDataToManychat } from './QRManychatSync'
 import { emitQRCreated, emitQRScanned } from '@/lib/webhooks/webhook-events'
 import { qrToolConfigService } from './QRToolConfigService'
+import { validateFallbackUrl } from '@/lib/security/url-validator'
 
 export interface QRAppearanceSettings {
   width?: number
@@ -110,10 +111,11 @@ export class QRCodeService {
       },
     })
 
-    // Generate scan URL
+    // Generate scan URL with security validation
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'
-    const scanUrl = config.fallbackUrl
-      ? `${config.fallbackUrl}?code=${encodeURIComponent(qrCode.code)}`
+    const validatedFallbackUrl = validateFallbackUrl(config.fallbackUrl)
+    const scanUrl = validatedFallbackUrl
+      ? `${validatedFallbackUrl}?code=${encodeURIComponent(qrCode.code)}`
       : `${baseUrl}/api/v1/qr/scan/${qrCode.code}`
 
     // Get QR appearance settings from tool config
