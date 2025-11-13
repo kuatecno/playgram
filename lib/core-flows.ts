@@ -4,6 +4,12 @@
  *
  * These are standard Manychat custom fields with recommended naming conventions
  * and setup instructions. They work just like any other custom field.
+ *
+ * TRACKING METHODS:
+ * - Custom Fields: Best for numeric counters and data you want to display (e.g., playgram_shares_count)
+ * - Tags: Best for binary states and segmentation (e.g., playgram_milestone_10, playgram_vip_gold)
+ *
+ * Some flows use both methods - custom fields for data, tags for segmentation.
  */
 
 export interface CoreFlow {
@@ -21,6 +27,11 @@ export interface CoreFlow {
     description: string;
     defaultValue?: any;
     manychatFieldId?: string; // Will be populated when created
+  }[];
+  recommendedTags?: {
+    name: string;
+    description: string;
+    when: string; // When to apply this tag
   }[];
   actions: {
     step: number;
@@ -171,40 +182,57 @@ export const CORE_FLOWS: CoreFlow[] = [
     ],
   },
   {
-    id: 'dm-tracker',
-    name: '✉️ Direct Message Tracker',
-    description: 'Track how many times users send you direct messages',
+    id: 'keyword-engagement-tracker',
+    name: '🔑 Keyword Engagement Tracker',
+    description: 'Track engagement from specific keyword triggers in DMs',
     category: 'tracking',
     trigger: {
-      type: 'message',
-      description: 'When user sends a direct message',
+      type: 'keyword',
+      description: 'When user sends a specific keyword (e.g., "PROMO", "INFO")',
     },
     customFields: [
       {
-        name: 'playgram_messages_count',
+        name: 'playgram_keyword_count',
         type: 'number',
-        description: 'Total number of DMs sent by this user',
+        description: 'Total number of times user triggered keyword flows',
         defaultValue: 0,
+      },
+      {
+        name: 'playgram_last_keyword',
+        type: 'text',
+        description: 'Last keyword triggered by user',
       },
     ],
     actions: [
       {
         step: 1,
         type: 'increment',
-        description: 'Increase DM count by 1',
+        description: 'Increase keyword engagement count by 1',
         config: {
-          field: 'playgram_messages_count',
+          field: 'playgram_keyword_count',
           operation: 'add',
           value: 1,
         },
       },
+      {
+        step: 2,
+        type: 'set_field',
+        description: 'Record which keyword was triggered',
+        config: {
+          field: 'playgram_last_keyword',
+          value: '{{keyword}}',
+        },
+      },
     ],
     setupInstructions: [
-      '1. Go to Automation → Instagram → Message',
-      '2. Create trigger: "User sends any message"',
+      '1. Go to Automation → Instagram → Keywords',
+      '2. Create keyword triggers (e.g., "PROMO", "INFO", "HELP")',
       '3. Add Action: "Set User Field"',
-      '4. Select field: playgram_messages_count',
+      '4. Select field: playgram_keyword_count',
       '5. Operation: "Increase by 1"',
+      '6. Add Action: "Set User Field"',
+      '7. Select field: playgram_last_keyword',
+      '8. Value: [keyword text]',
     ],
   },
   {
@@ -214,13 +242,13 @@ export const CORE_FLOWS: CoreFlow[] = [
     category: 'tracking',
     trigger: {
       type: 'story_share',
-      description: 'Any engagement trigger (shares, replies, comments, messages)',
+      description: 'Any engagement trigger (shares, replies, comments, keywords)',
     },
     customFields: [
       {
         name: 'playgram_total_engagement',
         type: 'number',
-        description: 'Total engagement count (shares + replies + comments + DMs)',
+        description: 'Total engagement count (shares + replies + comments + keywords)',
         defaultValue: 0,
       },
       {
@@ -251,7 +279,7 @@ export const CORE_FLOWS: CoreFlow[] = [
       },
     ],
     setupInstructions: [
-      '1. Add this action to ALL engagement triggers (shares, replies, comments, messages)',
+      '1. Add this action to ALL engagement triggers (shares, replies, comments, keywords)',
       '2. Add Action: "Set User Field"',
       '3. Select field: playgram_total_engagement',
       '4. Operation: "Increase by 1"',
@@ -301,6 +329,28 @@ export const CORE_FLOWS: CoreFlow[] = [
         defaultValue: false,
       },
     ],
+    recommendedTags: [
+      {
+        name: 'playgram_milestone_5',
+        description: 'User reached 5 engagements',
+        when: 'When playgram_total_engagement reaches 5',
+      },
+      {
+        name: 'playgram_milestone_10',
+        description: 'User reached 10 engagements',
+        when: 'When playgram_total_engagement reaches 10',
+      },
+      {
+        name: 'playgram_milestone_25',
+        description: 'User reached 25 engagements',
+        when: 'When playgram_total_engagement reaches 25',
+      },
+      {
+        name: 'playgram_milestone_50',
+        description: 'User reached 50 engagements',
+        when: 'When playgram_total_engagement reaches 50',
+      },
+    ],
     actions: [
       {
         step: 1,
@@ -327,13 +377,14 @@ export const CORE_FLOWS: CoreFlow[] = [
       },
     ],
     setupInstructions: [
-      '1. Create all milestone custom fields (playgram_milestone_5, etc.)',
+      '1. Create playgram_total_engagement custom field (number)',
       '2. On each engagement trigger, increase playgram_total_engagement by 1',
       '3. Add conditions to check milestones:',
-      '   - IF playgram_total_engagement == 5 AND playgram_milestone_5 == false',
-      '   - THEN send reward message and set playgram_milestone_5 = true',
+      '   - IF playgram_total_engagement == 5 AND user does NOT have tag playgram_milestone_5',
+      '   - THEN send reward message and ADD TAG playgram_milestone_5',
       '4. Repeat for 10, 25, 50 milestones',
       '5. Consider connecting to Dynamic Gallery for visual rewards',
+      'NOTE: Use tags (playgram_milestone_X) for segmentation instead of boolean fields',
     ],
   },
   {
@@ -365,6 +416,23 @@ export const CORE_FLOWS: CoreFlow[] = [
         defaultValue: false,
       },
     ],
+    recommendedTags: [
+      {
+        name: 'playgram_first_share',
+        description: 'User shared to story for the first time',
+        when: 'After sending first-share reward',
+      },
+      {
+        name: 'playgram_first_reply',
+        description: 'User replied to story for the first time',
+        when: 'After sending first-reply reward',
+      },
+      {
+        name: 'playgram_first_comment',
+        description: 'User commented for the first time',
+        when: 'After sending first-comment reward',
+      },
+    ],
     actions: [
       {
         step: 1,
@@ -387,10 +455,11 @@ export const CORE_FLOWS: CoreFlow[] = [
     ],
     setupInstructions: [
       '1. Go to each engagement trigger (share, reply, comment)',
-      '2. Add Condition: IF playgram_first_X_rewarded == false',
+      '2. Add Condition: IF user does NOT have tag playgram_first_X',
       '3. Add Action: Send reward message (or Dynamic Gallery content)',
-      '4. Add Action: Set playgram_first_X_rewarded = true',
+      '4. Add Action: ADD TAG playgram_first_X',
       '5. This ensures reward is only sent once',
+      'NOTE: Use tags instead of boolean fields for better segmentation',
     ],
   },
   {
@@ -413,6 +482,28 @@ export const CORE_FLOWS: CoreFlow[] = [
         name: 'playgram_vip_tier',
         type: 'text',
         description: 'Current VIP tier (bronze/silver/gold/platinum)',
+      },
+    ],
+    recommendedTags: [
+      {
+        name: 'playgram_vip_bronze',
+        description: 'Bronze tier VIP (5-9 engagements)',
+        when: 'When playgram_total_engagement reaches 5',
+      },
+      {
+        name: 'playgram_vip_silver',
+        description: 'Silver tier VIP (10-24 engagements)',
+        when: 'When playgram_total_engagement reaches 10',
+      },
+      {
+        name: 'playgram_vip_gold',
+        description: 'Gold tier VIP (25-49 engagements)',
+        when: 'When playgram_total_engagement reaches 25',
+      },
+      {
+        name: 'playgram_vip_platinum',
+        description: 'Platinum tier VIP (50+ engagements)',
+        when: 'When playgram_total_engagement reaches 50',
       },
     ],
     actions: [
