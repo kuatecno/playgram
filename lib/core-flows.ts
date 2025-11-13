@@ -54,9 +54,9 @@ export const CORE_FLOWS: CoreFlow[] = [
     },
     customFields: [
       {
-        name: 'playgram_shares_count',
+        name: 'playgram_shares_count_insta',
         type: 'number',
-        description: 'Total number of story shares by this user',
+        description: 'Total number of Instagram story shares by this user',
         defaultValue: 0,
       },
     ],
@@ -66,7 +66,7 @@ export const CORE_FLOWS: CoreFlow[] = [
         type: 'increment',
         description: 'Increase share count by 1',
         config: {
-          field: 'playgram_shares_count',
+          field: 'playgram_shares_count_insta',
           operation: 'add',
           value: 1,
         },
@@ -76,7 +76,7 @@ export const CORE_FLOWS: CoreFlow[] = [
         type: 'send_message',
         description: 'Thank user for sharing',
         config: {
-          message: '🎉 Thanks for sharing! You\'ve shared {{playgram_shares_count}} times.',
+          message: '🎉 Thanks for sharing! You\'ve shared {{playgram_shares_count_insta}} times.',
         },
       },
     ],
@@ -84,7 +84,7 @@ export const CORE_FLOWS: CoreFlow[] = [
       '1. Go to Automation → Instagram → Post or Reel Share',
       '2. Create trigger: "User shares your Post or Reel as a Story"',
       '3. Add Action: "Set User Field"',
-      '4. Select field: playgram_shares_count',
+      '4. Select field: playgram_shares_count_insta',
       '5. Operation: "Increase by 1"',
       '6. Add Action: "Send Message" (optional thank you message)',
     ],
@@ -100,9 +100,9 @@ export const CORE_FLOWS: CoreFlow[] = [
     },
     customFields: [
       {
-        name: 'playgram_story_replies_count',
+        name: 'playgram_story_replies_count_insta',
         type: 'number',
-        description: 'Total number of story replies by this user',
+        description: 'Total number of Instagram story replies by this user',
         defaultValue: 0,
       },
     ],
@@ -112,7 +112,7 @@ export const CORE_FLOWS: CoreFlow[] = [
         type: 'increment',
         description: 'Increase story reply count by 1',
         config: {
-          field: 'playgram_story_replies_count',
+          field: 'playgram_story_replies_count_insta',
           operation: 'add',
           value: 1,
         },
@@ -122,7 +122,7 @@ export const CORE_FLOWS: CoreFlow[] = [
         type: 'send_message',
         description: 'Respond to user',
         config: {
-          message: '👋 Thanks for your reply! Total replies: {{playgram_story_replies_count}}',
+          message: '👋 Thanks for your reply! Total replies: {{playgram_story_replies_count_insta}}',
         },
       },
     ],
@@ -130,7 +130,7 @@ export const CORE_FLOWS: CoreFlow[] = [
       '1. Go to Automation → Instagram → Story Reply',
       '2. Create trigger: "User replies to your Story"',
       '3. Add Action: "Set User Field"',
-      '4. Select field: playgram_story_replies_count',
+      '4. Select field: playgram_story_replies_count_insta',
       '5. Operation: "Increase by 1"',
       '6. Add Action: "Send Message" (optional response)',
     ],
@@ -146,9 +146,9 @@ export const CORE_FLOWS: CoreFlow[] = [
     },
     customFields: [
       {
-        name: 'playgram_comments_count',
+        name: 'playgram_comments_count_insta',
         type: 'number',
-        description: 'Total number of comments by this user',
+        description: 'Total number of Instagram comments by this user',
         defaultValue: 0,
       },
     ],
@@ -158,7 +158,7 @@ export const CORE_FLOWS: CoreFlow[] = [
         type: 'increment',
         description: 'Increase comment count by 1',
         config: {
-          field: 'playgram_comments_count',
+          field: 'playgram_comments_count_insta',
           operation: 'add',
           value: 1,
         },
@@ -168,7 +168,7 @@ export const CORE_FLOWS: CoreFlow[] = [
         type: 'send_message',
         description: 'Thank user for commenting',
         config: {
-          message: '💬 Thanks for commenting! Total comments: {{playgram_comments_count}}',
+          message: '💬 Thanks for commenting! Total comments: {{playgram_comments_count_insta}}',
         },
       },
     ],
@@ -176,7 +176,7 @@ export const CORE_FLOWS: CoreFlow[] = [
       '1. Go to Automation → Instagram → Comment',
       '2. Create trigger: "User comments on your post"',
       '3. Add Action: "Set User Field"',
-      '4. Select field: playgram_comments_count',
+      '4. Select field: playgram_comments_count_insta',
       '5. Operation: "Increase by 1"',
       '6. Add Action: "Send Message" (optional thank you)',
     ],
@@ -192,15 +192,15 @@ export const CORE_FLOWS: CoreFlow[] = [
     },
     customFields: [
       {
-        name: 'playgram_keyword_count',
+        name: 'playgram_keyword_count_insta',
         type: 'number',
-        description: 'Total number of times user triggered keyword flows',
+        description: 'Total number of times user triggered Instagram keyword flows',
         defaultValue: 0,
       },
       {
-        name: 'playgram_last_keyword',
+        name: 'playgram_last_keyword_insta',
         type: 'text',
-        description: 'Last keyword triggered by user',
+        description: 'Last Instagram keyword triggered by user',
       },
     ],
     actions: [
@@ -209,7 +209,7 @@ export const CORE_FLOWS: CoreFlow[] = [
         type: 'increment',
         description: 'Increase keyword engagement count by 1',
         config: {
-          field: 'playgram_keyword_count',
+          field: 'playgram_keyword_count_insta',
           operation: 'add',
           value: 1,
         },
@@ -219,7 +219,7 @@ export const CORE_FLOWS: CoreFlow[] = [
         type: 'set_field',
         description: 'Record which keyword was triggered',
         config: {
-          field: 'playgram_last_keyword',
+          field: 'playgram_last_keyword_insta',
           value: '{{keyword}}',
         },
       },
@@ -228,10 +228,10 @@ export const CORE_FLOWS: CoreFlow[] = [
       '1. Go to Automation → Instagram → Keywords',
       '2. Create keyword triggers (e.g., "PROMO", "INFO", "HELP")',
       '3. Add Action: "Set User Field"',
-      '4. Select field: playgram_keyword_count',
+      '4. Select field: playgram_keyword_count_insta',
       '5. Operation: "Increase by 1"',
       '6. Add Action: "Set User Field"',
-      '7. Select field: playgram_last_keyword',
+      '7. Select field: playgram_last_keyword_insta',
       '8. Value: [keyword text]',
     ],
   },

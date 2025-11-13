@@ -192,40 +192,91 @@ export default function CoreFlowsPage() {
         <TabsContent value="fields" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>All Core Custom Fields</CardTitle>
-              <CardDescription>
-                These fields can be created in your Manychat account and used across multiple flows
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>All Core Custom Fields</CardTitle>
+                  <CardDescription>
+                    These fields can be created in your Manychat account and used across multiple flows
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadManychatFields}
+                  disabled={loadingFields}
+                >
+                  {loadingFields ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  <span className="ml-2">Refresh</span>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {allFields.map((field) => (
-                  <div
-                    key={field.name}
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                          {field.name}
-                        </code>
-                        <Badge variant="outline">{field.type}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(field.name)}
+                {allFields.map((field) => {
+                  const existingField = existingFields.find((f) => f.name === field.name);
+                  const status = getFieldStatus(field.name);
+
+                  return (
+                    <div
+                      key={field.name}
+                      className="flex items-center justify-between p-3 border rounded-lg"
                     >
-                      {copiedField === field.name ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                ))}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                            {field.name}
+                          </code>
+                          <Badge variant="outline">{field.type}</Badge>
+                          {status === 'matched' && (
+                            <Badge className="text-xs bg-green-500">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Ready
+                            </Badge>
+                          )}
+                          {status === 'remapped' && (
+                            <Badge className="text-xs bg-blue-500">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Mapped
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">{field.description}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!existingField && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => createCustomField(field.name, field.type)}
+                            disabled={creatingField === field.name}
+                          >
+                            {creatingField === field.name ? (
+                              <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <Plus className="h-3 w-3 mr-1" />
+                            )}
+                            Create
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(field.name)}
+                        >
+                          {copiedField === field.name ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
