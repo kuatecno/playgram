@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Users, Search, TrendingUp, UserCheck, UserX, Instagram, MessageCircle, Eye } from 'lucide-react'
+import { Users, Search, TrendingUp, UserCheck, UserX, Instagram, MessageCircle, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface Contact {
   id: string
@@ -49,11 +49,24 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'subscribed' | 'unsubscribed'>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(20)
+  const [totalContacts, setTotalContacts] = useState(0)
+
+  const totalPages = Math.ceil(totalContacts / pageSize)
+
+  useEffect(() => {
+    // Reset to page 1 when search or filter changes
+    setCurrentPage(1)
+  }, [search, filter])
 
   useEffect(() => {
     fetchContacts()
+  }, [search, filter, currentPage])
+
+  useEffect(() => {
     fetchStats()
-  }, [search, filter])
+  }, [])
 
   const fetchContacts = async () => {
     try {
@@ -63,12 +76,15 @@ export default function ContactsPage() {
       if (filter !== 'all') {
         params.set('isSubscribed', filter === 'subscribed' ? 'true' : 'false')
       }
+      params.set('limit', pageSize.toString())
+      params.set('offset', ((currentPage - 1) * pageSize).toString())
 
       const response = await fetch(`/api/v1/contacts?${params.toString()}`)
       const data = await response.json()
 
       if (data.success) {
         setContacts(data.data.contacts)
+        setTotalContacts(data.data.total)
       }
     } catch (error) {
       console.error('Error fetching contacts:', error)
@@ -363,6 +379,79 @@ export default function ContactsPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Pagination Controls */}
+      {!loading && contacts.length > 0 && totalPages > 1 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalContacts)} of {totalContacts} contacts
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    // Show first 3 pages, current page with neighbors, and last page
+                    let pageNum: number
+                    if (totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i
+                    } else {
+                      pageNum = currentPage - 2 + i
+                    }
+
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="w-10"
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <>
+                      <span className="px-2 text-muted-foreground">...</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(totalPages)}
+                        className="w-10"
+                      >
+                        {totalPages}
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )
