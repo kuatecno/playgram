@@ -1,6 +1,14 @@
 import type { Tool, QRToolConfig } from '@prisma/client'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
+import {
+  validateJsonField,
+  safeParseJson,
+  isQRAppearanceSettings,
+  isQRFieldMappingConfig,
+  isSecurityPolicy,
+  sanitizeMetadata,
+} from '@/lib/validation/json-validator'
 
 export interface QRAppearanceSettings {
   width?: number
@@ -134,33 +142,62 @@ class QRToolConfigService {
 
   /**
    * Update config fields for a tool. Missing config will be created automatically.
+   * Validates all JSON fields before storage.
    */
   async updateConfig(toolId: string, input: UpdateQRToolConfigInput): Promise<QRToolConfig> {
     const existing = await this.ensureConfigForTool(toolId)
 
-    const nextAppearance =
-      input.appearance !== undefined
-        ? input.appearance ?? null
-        : existing.appearance
+    // Validate and sanitize appearance settings
+    let nextAppearance: QRAppearanceSettings | null = null
+    if (input.appearance !== undefined) {
+      if (input.appearance !== null) {
+        if (!isQRAppearanceSettings(input.appearance)) {
+          throw new Error('Invalid QR appearance settings structure')
+        }
+        nextAppearance = input.appearance
+      }
+    } else {
+      nextAppearance = safeParseJson(existing.appearance, null)
+    }
 
-    const nextFieldMappings =
-      input.fieldMappings !== undefined
-        ? input.fieldMappings ?? null
-        : existing.fieldMappings
+    // Validate and sanitize field mappings
+    let nextFieldMappings: QRFieldMappingConfigData | null = null
+    if (input.fieldMappings !== undefined) {
+      if (input.fieldMappings !== null) {
+        if (!isQRFieldMappingConfig(input.fieldMappings)) {
+          throw new Error('Invalid field mapping configuration structure')
+        }
+        nextFieldMappings = input.fieldMappings
+      }
+    } else {
+      nextFieldMappings = safeParseJson(existing.fieldMappings, null)
+    }
 
-    const nextSecurityPolicy =
-      input.securityPolicy !== undefined
-        ? input.securityPolicy ?? null
-        : existing.securityPolicy
+    // Validate and sanitize security policy
+    let nextSecurityPolicy: QRToolSecurityPolicy | null = null
+    if (input.securityPolicy !== undefined) {
+      if (input.securityPolicy !== null) {
+        if (!isSecurityPolicy(input.securityPolicy)) {
+          throw new Error('Invalid security policy structure')
+        }
+        nextSecurityPolicy = input.securityPolicy
+      }
+    } else {
+      nextSecurityPolicy = safeParseJson(existing.securityPolicy, null)
+    }
+
+    // Sanitize metadata
+    const rawMetadata = input.metadata !== undefined ? input.metadata : existing.metadata
+    const sanitizedMetadata = sanitizeMetadata(rawMetadata)
 
     const data: Prisma.QRToolConfigUpdateInput = {
       formatPattern:
         input.formatPattern !== undefined ? input.formatPattern : existing.formatPattern,
       fallbackUrl: input.fallbackUrl !== undefined ? input.fallbackUrl : existing.fallbackUrl,
-      appearance: nextAppearance !== null ? JSON.parse(JSON.stringify(nextAppearance)) : Prisma.JsonNull,
-      fieldMappings: nextFieldMappings !== null ? JSON.parse(JSON.stringify(nextFieldMappings)) : Prisma.JsonNull,
-      securityPolicy: nextSecurityPolicy !== null ? JSON.parse(JSON.stringify(nextSecurityPolicy)) : Prisma.JsonNull,
-      metadata: JSON.parse(JSON.stringify(input.metadata !== undefined ? input.metadata : existing.metadata)),
+      appearance: nextAppearance !== null ? validateJsonField(nextAppearance, 'appearance') : Prisma.JsonNull,
+      fieldMappings: nextFieldMappings !== null ? validateJsonField(nextFieldMappings, 'fieldMappings') : Prisma.JsonNull,
+      securityPolicy: nextSecurityPolicy !== null ? validateJsonField(nextSecurityPolicy, 'securityPolicy') : Prisma.JsonNull,
+      metadata: validateJsonField(sanitizedMetadata, 'metadata'),
     }
 
     const updated = await db.qRToolConfig.update({
@@ -173,45 +210,44 @@ class QRToolConfigService {
 
   /**
    * Convenience helper to get field mapping config with defaults.
+   * Uses safe parsing to prevent errors from corrupt data.
    */
   getFieldMappingConfig(config: QRToolConfig | null): QRFieldMappingConfigData {
     if (!config?.fieldMappings) {
       return DEFAULT_FIELD_MAPPING_CONFIG
     }
 
-    try {
-      const parsed = typeof config.fieldMappings === 'string'
-        ? JSON.parse(config.fieldMappings)
-        : config.fieldMappings
+    const parsed = safeParseJson(config.fieldMappings, DEFAULT_FIELD_MAPPING_CONFIG)
 
-      return {
-        mappings: parsed?.mappings ?? [],
-        autoSyncOnScan: parsed?.autoSyncOnScan ?? false,
-        autoSyncOnValidation: parsed?.autoSyncOnValidation ?? false,
-      }
-    } catch (error) {
-      console.error('Failed to parse QR field mappings, returning defaults:', error)
+    // Validate structure
+    if (!isQRFieldMappingConfig(parsed)) {
+      console.error('Invalid field mapping config structure, using defaults')
       return DEFAULT_FIELD_MAPPING_CONFIG
     }
+
+    return parsed
   }
 
+  /**
+   * Get appearance settings with defaults.
+   * Uses safe parsing to prevent errors from corrupt data.
+   */
   getAppearance(config: QRToolConfig | null): QRAppearanceSettings {
     if (!config?.appearance) {
       return DEFAULT_QR_APPEARANCE
     }
 
-    try {
-      const parsed = typeof config.appearance === 'string'
-        ? JSON.parse(config.appearance)
-        : config.appearance
+    const parsed = safeParseJson(config.appearance, DEFAULT_QR_APPEARANCE)
 
-      return {
-        ...DEFAULT_QR_APPEARANCE,
-        ...(parsed as Record<string, unknown>),
-      }
-    } catch (error) {
-      console.error('Failed to parse QR appearance, returning defaults:', error)
+    // Validate structure
+    if (!isQRAppearanceSettings(parsed)) {
+      console.error('Invalid appearance settings structure, using defaults')
       return DEFAULT_QR_APPEARANCE
+    }
+
+    return {
+      ...DEFAULT_QR_APPEARANCE,
+      ...parsed,
     }
   }
 }

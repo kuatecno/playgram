@@ -90,7 +90,23 @@ export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncRe
       return result
     }
 
-    // 7. Sync each enabled field mapping
+    // 7. Create sync log FIRST (using transaction for safety)
+    // This ensures we always have a record, even if API calls fail
+    const syncLog = await db.$transaction(async (tx) => {
+      return await tx.qRSyncLog.create({
+        data: {
+          qrCodeId: qrCode.id,
+          userId,
+          trigger,
+          success: false, // Will update after sync
+          syncedFields: 0,
+          errors: null,
+          timestamp: new Date(),
+        },
+      })
+    })
+
+    // 8. Sync each enabled field mapping (external API calls, cannot be in transaction)
     const enabledMappings = mappingConfig.mappings.filter((m) => m.enabled)
 
     for (const mapping of enabledMappings) {
@@ -126,16 +142,13 @@ export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncRe
       }
     }
 
-    // 8. Log sync attempt
-    await db.qRSyncLog.create({
+    // 9. Update sync log with results
+    await db.qRSyncLog.update({
+      where: { id: syncLog.id },
       data: {
-        qrCodeId: qrCode.id,
-        userId,
-        trigger,
         success: result.errors.length === 0,
         syncedFields: result.syncedFields,
         errors: result.errors.length > 0 ? JSON.stringify(result.errors) : null,
-        timestamp: new Date(),
       },
     })
 
