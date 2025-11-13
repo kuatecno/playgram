@@ -21,7 +21,6 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
   ArrowLeft,
-  ArrowRight,
   Loader2,
   Plus,
   QrCode,

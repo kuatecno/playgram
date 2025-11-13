@@ -16,11 +16,11 @@ const updateToolSchema = z.object({
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { toolId: string } }
+  { params }: { params: Promise<{ toolId: string }> }
 ) {
   try {
     const user = await requireAuth()
-    const { toolId } = params
+    const { toolId } = await params
 
     // Get tool with ownership verification
     const tool = await qrToolConfigService.getTool(toolId, user.id)
@@ -43,11 +43,11 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { toolId: string } }
+  { params }: { params: Promise<{ toolId: string }> }
 ) {
   try {
     const user = await requireAuth()
-    const { toolId } = params
+    const { toolId } = await params
     const body = await request.json()
 
     // Validate input
@@ -75,11 +75,11 @@ export async function PATCH(
  */
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { toolId: string } }
+  { params }: { params: Promise<{ toolId: string }> }
 ) {
   try {
     const user = await requireAuth()
-    const { toolId } = params
+    const { toolId } = await params
 
     // Delete tool
     await qrToolConfigService.deleteTool(toolId, user.id)
