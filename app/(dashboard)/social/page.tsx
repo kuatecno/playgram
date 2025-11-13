@@ -1,6 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Database, Zap, TrendingUp, Activity } from 'lucide-react'
 
+// Force dynamic rendering to avoid build-time fetch errors
+export const dynamic = 'force-dynamic'
+
 export default async function SocialDataPage() {
   // Fetch real cache statistics from the API
   let stats = {
