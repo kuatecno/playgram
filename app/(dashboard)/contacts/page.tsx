@@ -405,6 +405,14 @@ export default function ContactsPage() {
               <p className="text-xs text-muted-foreground">
                 Copy this exact JSON structure into Manychat&apos;s External Request action
               </p>
+              <div className="rounded-lg border-2 border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20 p-3 space-y-2">
+                <h5 className="text-sm font-semibold text-yellow-900 dark:text-yellow-100">Important: How to enter variables</h5>
+                <ul className="text-xs text-yellow-800 dark:text-yellow-200 space-y-1">
+                  <li>• <strong>admin_id</strong>: Type exactly <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">{`{{admin_id}}`}</code> (including curly braces) - it&apos;s a Manychat system variable</li>
+                  <li>• <strong>subscriber_data</strong>: Click &quot;+ Add Full Contact Data&quot; button, then select &quot;Full Contact Data&quot; from the dropdown</li>
+                  <li>• Do NOT use quotes around <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">subscriber_data</code> - Manychat will format it correctly</li>
+                </ul>
+              </div>
             </div>
 
             {/* Step 4: Instructions */}
@@ -422,7 +430,9 @@ export default function ContactsPage() {
                     <div className="font-mono text-xs">Value: application/json</div>
                   </div>
                 </li>
-                <li>Paste the Request Body JSON above</li>
+                <li>In Request Body, switch to JSON mode</li>
+                <li>For <strong>admin_id</strong>: Type the text <code className="bg-muted px-1 rounded">{`{{admin_id}}`}</code> directly (don&apos;t select from dropdown)</li>
+                <li>For <strong>subscriber_data</strong>: Click &quot;+ Add Full Contact Data&quot; and select &quot;Full Contact Data&quot;</li>
                 <li>Test the action to verify the connection</li>
               </ol>
             </div>
