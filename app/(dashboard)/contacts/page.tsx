@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Users, Search, TrendingUp, UserCheck, UserX, Instagram, MessageCircle, Eye, ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { Users, Search, TrendingUp, UserCheck, UserX, Instagram, MessageCircle, Eye, ChevronLeft, ChevronRight, Download, Webhook, Copy, CheckCircle } from 'lucide-react'
 
 interface Contact {
   id: string
@@ -52,6 +52,8 @@ export default function ContactsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize] = useState(20)
   const [totalContacts, setTotalContacts] = useState(0)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [showWebhookSetup, setShowWebhookSetup] = useState(false)
 
   const totalPages = Math.ceil(totalContacts / pageSize)
 
@@ -210,6 +212,16 @@ export default function ContactsPage() {
     return date.toLocaleDateString()
   }
 
+  const copyToClipboard = async (text: string, fieldName: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedField(fieldName)
+      setTimeout(() => setCopiedField(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
+
   if (loading && contacts.length === 0) {
     return (
       <div className="space-y-6">
@@ -299,6 +311,151 @@ export default function ContactsPage() {
           </Card>
         </div>
       )}
+
+      {/* Webhook Setup Guide */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Webhook className="h-5 w-5 text-primary" />
+              <CardTitle>Manychat Webhook Setup</CardTitle>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowWebhookSetup(!showWebhookSetup)}
+            >
+              {showWebhookSetup ? 'Hide' : 'Show'} Setup Instructions
+            </Button>
+          </div>
+          <CardDescription>
+            Configure Manychat to automatically sync contacts when they interact with your bot
+          </CardDescription>
+        </CardHeader>
+        {showWebhookSetup && (
+          <CardContent className="space-y-6">
+            {/* Step 1: Webhook URL */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">1. Webhook URL</label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard('https://playgram.kua.cl/api/manychat/webhook/contact', 'url')}
+                  className="h-8"
+                >
+                  {copiedField === 'url' ? (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+              <div className="rounded-lg bg-muted p-3 font-mono text-sm">
+                https://playgram.kua.cl/api/manychat/webhook/contact
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This is the endpoint where Manychat will send contact data
+              </p>
+            </div>
+
+            {/* Step 2: HTTP Method */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">2. HTTP Method</label>
+              <div className="rounded-lg bg-muted p-3 font-mono text-sm">
+                POST
+              </div>
+            </div>
+
+            {/* Step 3: Request Body */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">3. Request Body (JSON)</label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard('{\n  "admin_id": "{{admin_id}}",\n  "subscriber_data": {{subscriber_data|to_json:true}}\n}', 'body')}
+                  className="h-8"
+                >
+                  {copiedField === 'body' ? (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+              <div className="rounded-lg bg-muted p-3 font-mono text-xs overflow-x-auto">
+                <pre>{`{
+  "admin_id": "{{admin_id}}",
+  "subscriber_data": {{subscriber_data|to_json:true}}
+}`}</pre>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Copy this exact JSON structure into Manychat&apos;s External Request action
+              </p>
+            </div>
+
+            {/* Step 4: Instructions */}
+            <div className="rounded-lg border bg-background p-4 space-y-3">
+              <h4 className="font-medium text-sm">How to set up in Manychat:</h4>
+              <ol className="space-y-2 list-decimal list-inside text-sm text-muted-foreground ml-2">
+                <li>Open your Manychat automation flow</li>
+                <li>Add an &quot;Action&quot; step where you want to sync contacts</li>
+                <li>Select &quot;External Request&quot; action</li>
+                <li>Set Request Type to &quot;POST&quot;</li>
+                <li>Paste the Webhook URL above</li>
+                <li>Add a Custom Header:
+                  <div className="ml-6 mt-1 space-y-1">
+                    <div className="font-mono text-xs">Header: Content-Type</div>
+                    <div className="font-mono text-xs">Value: application/json</div>
+                  </div>
+                </li>
+                <li>Paste the Request Body JSON above</li>
+                <li>Test the action to verify the connection</li>
+              </ol>
+            </div>
+
+            {/* What gets synced */}
+            <div className="rounded-lg border bg-primary/5 p-4">
+              <h4 className="font-medium text-sm mb-3">What gets synced automatically:</h4>
+              <ul className="space-y-1 text-sm text-muted-foreground">
+                <li>✓ First Name & Last Name</li>
+                <li>✓ Instagram Username</li>
+                <li>✓ Profile Picture</li>
+                <li>✓ Tags assigned to the subscriber</li>
+                <li>✓ Custom Field values</li>
+                <li>✓ Last interaction timestamp</li>
+              </ul>
+            </div>
+
+            {/* Trigger Recommendations */}
+            <div className="rounded-lg border bg-muted/50 p-4">
+              <h4 className="font-medium text-sm mb-2">Recommended Triggers:</h4>
+              <p className="text-sm text-muted-foreground mb-2">
+                Set up this webhook to trigger when:
+              </p>
+              <ul className="space-y-1 text-sm text-muted-foreground ml-4">
+                <li>• User sends first message (welcome flow)</li>
+                <li>• User completes registration or profile setup</li>
+                <li>• User gets tagged</li>
+                <li>• User updates their information</li>
+              </ul>
+            </div>
+          </CardContent>
+        )}
+      </Card>
 
       {/* Filters */}
       <Card>
