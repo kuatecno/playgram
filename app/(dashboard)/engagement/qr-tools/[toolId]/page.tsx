@@ -266,7 +266,7 @@ export default function QrToolConfigPage() {
   const [_manychatTags, setManychatTags] = useState<ManychatTag[]>([]) // Reserved for future tag UI
   const [outcomeFieldMappings, setOutcomeFieldMappings] = useState<OutcomeFieldMapping[]>([])
   const [outcomeTagConfigs, setOutcomeTagConfigs] = useState<OutcomeTagConfig[]>([])
-  const [_outcomeConfigSaving, setOutcomeConfigSaving] = useState(false) // Reserved for future save UI
+  const [outcomeConfigSaving, setOutcomeConfigSaving] = useState(false)
 
   const [pendingFieldRow, setPendingFieldRow] = useState<ExtendedQrFieldKey | null>(null)
 
@@ -721,8 +721,6 @@ export default function QrToolConfigPage() {
     }
   }
 
-  // Reserved for future outcome configuration UI
-  // @ts-expect-error - Function reserved for future use
   async function handleSaveOutcomeConfig() {
     setOutcomeConfigSaving(true)
     try {
@@ -787,6 +785,98 @@ export default function QrToolConfigPage() {
         next[index] = updated
       }
       return next
+    })
+  }
+
+  function addOutcomeFieldMapping() {
+    const newMapping: OutcomeFieldMapping = {
+      id: Date.now().toString(),
+      outcome: 'validated_success',
+      manychatFieldId: '',
+      manychatFieldName: '',
+      value: '',
+      enabled: true,
+    }
+    setOutcomeFieldMappings((prev) => [...prev, newMapping])
+  }
+
+  function updateOutcomeFieldMapping(id: string, partial: Partial<OutcomeFieldMapping>) {
+    setOutcomeFieldMappings((prev) =>
+      prev.map((mapping) => (mapping.id === id ? { ...mapping, ...partial } : mapping))
+    )
+  }
+
+  function removeOutcomeFieldMapping(id: string) {
+    setOutcomeFieldMappings((prev) => prev.filter((mapping) => mapping.id !== id))
+  }
+
+  function addValidationStatusTemplate() {
+    // Find validation_status field in ManyChat fields
+    const validationField = manychatFields.find((f) =>
+      f.name.toLowerCase().includes('validation') ||
+      f.name.toLowerCase().includes('status')
+    )
+
+    if (!validationField) {
+      toast({
+        title: 'No validation field found',
+        description: 'Create a "validation_status" custom field in ManyChat first.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const templates: OutcomeFieldMapping[] = [
+      {
+        id: `${Date.now()}-1`,
+        outcome: 'sent',
+        manychatFieldId: validationField.id,
+        manychatFieldName: validationField.name,
+        value: 'SENT',
+        enabled: true,
+      },
+      {
+        id: `${Date.now()}-2`,
+        outcome: 'validated_success',
+        manychatFieldId: validationField.id,
+        manychatFieldName: validationField.name,
+        value: 'SUCCESS',
+        enabled: true,
+      },
+      {
+        id: `${Date.now()}-3`,
+        outcome: 'validated_failed',
+        failureReason: 'expired',
+        manychatFieldId: validationField.id,
+        manychatFieldName: validationField.name,
+        value: 'EXPIRED',
+        enabled: true,
+      },
+      {
+        id: `${Date.now()}-4`,
+        outcome: 'validated_failed',
+        failureReason: 'wrong_person',
+        manychatFieldId: validationField.id,
+        manychatFieldName: validationField.name,
+        value: 'WRONG_PERSON',
+        enabled: true,
+      },
+      {
+        id: `${Date.now()}-5`,
+        outcome: 'validated_failed',
+        failureReason: 'already_used',
+        manychatFieldId: validationField.id,
+        manychatFieldName: validationField.name,
+        value: 'ALREADY_USED',
+        enabled: true,
+      },
+    ]
+
+    setOutcomeFieldMappings((prev) => [...prev, ...templates])
+
+    toast({
+      title: 'Template added',
+      description: `Added 5 validation status mappings for "${validationField.name}".`,
     })
   }
 
@@ -1630,9 +1720,9 @@ export default function QrToolConfigPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Outcome-Based Configuration (Advanced)</CardTitle>
+              <CardTitle>Outcome-Based Field Values (Advanced)</CardTitle>
               <CardDescription>
-                Configure conditional field updates and tag application based on QR validation outcomes
+                Configure different values for ManyChat fields based on QR validation outcomes
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1654,46 +1744,153 @@ export default function QrToolConfigPage() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
-                <p className="text-xs text-amber-900">
-                  <strong>Note:</strong> Outcome-based field mappings and tags are configured via the API. Each outcome can trigger specific custom field updates and tag operations. See the External Request Setup above for integration details.
-                </p>
-              </div>
-
-              {manychatConnected && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold">Current Configuration</h4>
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setShowCreateTagDialog(true)}>
-                        <Plus className="mr-2 h-4 w-4" /> Create Tag
+              {!manychatConnected ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                  <p className="text-xs text-amber-900">
+                    <strong>Note:</strong> Connect ManyChat to configure outcome-based field mappings.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h4 className="text-sm font-semibold">Field Value Mappings</h4>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={addValidationStatusTemplate}>
+                        <Sparkles className="mr-2 h-4 w-4" /> Quick Template
                       </Button>
-                      <Badge variant="outline">
-                        {outcomeFieldMappings.length + outcomeTagConfigs.length} rules configured
-                      </Badge>
+                      <Button size="sm" variant="outline" onClick={addOutcomeFieldMapping}>
+                        <Plus className="mr-2 h-4 w-4" /> Add Mapping
+                      </Button>
                     </div>
                   </div>
 
-                  {(outcomeFieldMappings.length > 0 || outcomeTagConfigs.length > 0) && (
-                    <div className="rounded-md border p-3 text-sm space-y-2">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span className="text-muted-foreground">
-                          {outcomeFieldMappings.filter(m => m.enabled).length} field mapping{outcomeFieldMappings.filter(m => m.enabled).length !== 1 ? 's' : ''} enabled
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span className="text-muted-foreground">
-                          {outcomeTagConfigs.filter(t => t.enabled).length} tag configuration{outcomeTagConfigs.filter(t => t.enabled).length !== 1 ? 's' : ''} enabled
-                        </span>
-                      </div>
+                  {outcomeFieldMappings.length === 0 ? (
+                    <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                      No outcome-based mappings configured. Click &quot;Add Mapping&quot; to set field values based on validation outcomes.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {outcomeFieldMappings.map((mapping) => (
+                        <div key={mapping.id} className="rounded-lg border p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={mapping.enabled}
+                                onChange={(e) =>
+                                  updateOutcomeFieldMapping(mapping.id, { enabled: e.target.checked })
+                                }
+                                className="h-4 w-4 rounded border-gray-300"
+                              />
+                              <Label className="text-sm font-medium">
+                                {mapping.enabled ? 'Enabled' : 'Disabled'}
+                              </Label>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => removeOutcomeFieldMapping(mapping.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label className="text-xs">ManyChat Field</Label>
+                              <select
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                                value={mapping.manychatFieldId}
+                                onChange={(e) => {
+                                  const fieldId = e.target.value
+                                  const fieldName = manychatFields.find((f) => f.id === fieldId)?.name || ''
+                                  updateOutcomeFieldMapping(mapping.id, {
+                                    manychatFieldId: fieldId,
+                                    manychatFieldName: fieldName,
+                                  })
+                                }}
+                              >
+                                <option value="">— Select field —</option>
+                                {manychatFields.map((field) => (
+                                  <option key={field.id} value={field.id}>
+                                    {field.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-xs">Outcome</Label>
+                              <select
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                                value={mapping.outcome}
+                                onChange={(e) =>
+                                  updateOutcomeFieldMapping(mapping.id, {
+                                    outcome: e.target.value as QRValidationOutcome,
+                                  })
+                                }
+                              >
+                                <option value="sent">Sent</option>
+                                <option value="validated_success">Validated Success</option>
+                                <option value="validated_failed">Validated Failed</option>
+                              </select>
+                            </div>
+
+                            {mapping.outcome === 'validated_failed' && (
+                              <div className="space-y-2">
+                                <Label className="text-xs">Failure Reason (Optional)</Label>
+                                <select
+                                  className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                                  value={mapping.failureReason || ''}
+                                  onChange={(e) =>
+                                    updateOutcomeFieldMapping(mapping.id, {
+                                      failureReason: e.target.value ? (e.target.value as QRFailureReason) : undefined,
+                                    })
+                                  }
+                                >
+                                  <option value="">— Any failure —</option>
+                                  <option value="wrong_person">Wrong Person</option>
+                                  <option value="expired">Expired</option>
+                                  <option value="already_used">Already Used</option>
+                                  <option value="other">Other</option>
+                                </select>
+                              </div>
+                            )}
+
+                            <div className="space-y-2 md:col-span-2">
+                              <Label className="text-xs">Value to Set</Label>
+                              <Input
+                                placeholder="e.g., 'success', 'failed', 'expired'"
+                                value={mapping.value}
+                                onChange={(e) =>
+                                  updateOutcomeFieldMapping(mapping.id, { value: e.target.value })
+                                }
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                The value that will be written to the ManyChat field when this outcome occurs
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
 
-                  <p className="text-xs text-muted-foreground">
-                    To modify outcome-based configuration, use the Field Mapping API endpoint with <code className="px-1 py-0.5 bg-background rounded">outcomeFieldMappings</code> and <code className="px-1 py-0.5 bg-background rounded">outcomeTagConfigs</code> parameters. Use the buttons above to quickly create new fields or tags when needed.
-                  </p>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                    <p className="text-xs text-blue-900">
+                      <strong>Example:</strong> Set the &quot;validation_status&quot; field to &quot;SUCCESS&quot; for validated_success, &quot;EXPIRED&quot; for validated_failed with reason expired, and &quot;WRONG_PERSON&quot; for validated_failed with reason wrong_person.
+                    </p>
+                  </div>
+
+                  <Button onClick={handleSaveOutcomeConfig} disabled={outcomeConfigSaving}>
+                    {outcomeConfigSaving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    Save Outcome Configuration
+                  </Button>
                 </div>
               )}
             </CardContent>
