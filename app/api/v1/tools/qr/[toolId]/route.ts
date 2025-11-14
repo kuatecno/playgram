@@ -28,8 +28,8 @@ export async function GET(
       return apiResponse.notFound('Tool not found')
     }
 
-    // Get config
-    const config = await qrToolConfigService.getConfig(toolId)
+    // Ensure config exists (creates if missing)
+    const config = await qrToolConfigService.ensureConfigForTool(toolId)
 
     return apiResponse.success({ tool, config })
   } catch (error) {
