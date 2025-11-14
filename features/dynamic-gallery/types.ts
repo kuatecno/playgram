@@ -25,6 +25,7 @@ export const dynamicGalleryButtonSchema = z.object({
 export const dynamicGalleryCardSchema = z.object({
   id: z.string().optional(),
   imageUrl: z.string().url().max(2048),
+  imageClickUrl: z.string().url().max(2048).optional(),
   title: z.string().min(1).max(80),
   subtitle: z.string().min(1).max(80),
   buttons: z

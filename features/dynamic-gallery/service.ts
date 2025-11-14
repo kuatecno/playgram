@@ -350,6 +350,9 @@ export class DynamicGalleryService {
             const baseField = `playgram_gallery_${index + 1}`
 
             fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${baseField}_image_url`, card.imageUrl))
+            if (card.imageClickUrl) {
+              fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${baseField}_image_click_url`, card.imageClickUrl))
+            }
             fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${baseField}_title`, card.title))
             fieldUpdates.push(manychatService.setCustomFieldWithToken(apiToken, contactId, `${baseField}_subtitle`, card.subtitle))
 

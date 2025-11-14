@@ -62,8 +62,10 @@ export default function DynamicGalleryPage() {
     title: '',
     subtitle: '',
     imageUrl: '',
+    imageClickUrl: '',
     buttons: [{ title: '', url: '' }]
   })
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [dataSourceForm, setDataSourceForm] = useState({
     name: 'Instagram CMS',
     sourceType: 'webhook' as 'webhook' | 'api' | 'manual',
@@ -692,13 +694,80 @@ export default function DynamicGalleryPage() {
               />
             </div>
             <div className="grid gap-3">
-              <Label htmlFor="card-image">Image URL</Label>
+              <Label htmlFor="card-image">Image (5:6 aspect ratio recommended - 1080x1296)</Label>
+              <div className="space-y-2">
+                <Input
+                  type="file"
+                  id="card-image-file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+
+                    setIsUploadingImage(true)
+                    try {
+                      const formData = new FormData()
+                      formData.append('file', file)
+
+                      const response = await fetch('/api/v1/upload/image', {
+                        method: 'POST',
+                        body: formData,
+                      })
+
+                      const data = await response.json()
+                      if (data.success) {
+                        setNewCard({ ...newCard, imageUrl: data.data.url })
+                        toast({
+                          title: 'Image uploaded',
+                          description: 'Image cropped to 5:6 aspect ratio',
+                        })
+                      } else {
+                        throw new Error(data.error || 'Upload failed')
+                      }
+                    } catch (error) {
+                      toast({
+                        title: 'Upload failed',
+                        description: error instanceof Error ? error.message : 'Unknown error',
+                        variant: 'destructive',
+                      })
+                    } finally {
+                      setIsUploadingImage(false)
+                    }
+                  }}
+                  disabled={isUploadingImage}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {isUploadingImage ? 'Uploading and cropping...' : 'Or enter a URL manually:'}
+                </p>
+                <Input
+                  id="card-image"
+                  value={newCard.imageUrl}
+                  onChange={(e) => setNewCard({ ...newCard, imageUrl: e.target.value })}
+                  placeholder="https://example.com/image.jpg"
+                  disabled={isUploadingImage}
+                />
+                {newCard.imageUrl && (
+                  <div className="relative aspect-[5/6] w-full max-w-xs overflow-hidden rounded-lg border">
+                    <img
+                      src={newCard.imageUrl}
+                      alt="Preview"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="grid gap-3">
+              <Label htmlFor="card-image-click">Image click URL (optional)</Label>
               <Input
-                id="card-image"
-                value={newCard.imageUrl}
-                onChange={(e) => setNewCard({ ...newCard, imageUrl: e.target.value })}
-                placeholder="https://example.com/image.jpg"
+                id="card-image-click"
+                value={newCard.imageClickUrl}
+                onChange={(e) => setNewCard({ ...newCard, imageClickUrl: e.target.value })}
+                placeholder="https://example.com (defaults to first button)"
               />
+              <p className="text-xs text-muted-foreground">
+                Where users go when they tap the image. Defaults to the first button's URL if left empty.
+              </p>
             </div>
             <div className="grid gap-3">
               <Label>Buttons (up to 3)</Label>
@@ -758,10 +827,16 @@ export default function DynamicGalleryPage() {
             </Button>
             <Button onClick={async () => {
               try {
-                await dynamicGalleryApi.storeCards([...cards, newCard])
+                // Auto-populate imageClickUrl from first button if not provided
+                const cardToCreate = {
+                  ...newCard,
+                  imageClickUrl: newCard.imageClickUrl || newCard.buttons[0]?.url || ''
+                }
+
+                await dynamicGalleryApi.storeCards([...cards, cardToCreate])
                 toast({ title: 'Card created', description: 'Gallery card added successfully' })
                 setIsCreateCardDialogOpen(false)
-                setNewCard({ title: '', subtitle: '', imageUrl: '', buttons: [{ title: '', url: '' }] })
+                setNewCard({ title: '', subtitle: '', imageUrl: '', imageClickUrl: '', buttons: [{ title: '', url: '' }] })
                 await loadSummary()
               } catch (error) {
                 toast({
