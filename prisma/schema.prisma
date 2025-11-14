@@ -62,13 +62,14 @@ model Admin {
   lastLogin     DateTime?
 
   // Relations
-  tools                 Tool[]
-  manychatConfig        ManychatConfig?
-  tags                  Tag[]
-  webhookSubscriptions  WebhookSubscription[]
-  dataExports           DataExport[]
-  verificationApiKeys   VerificationApiKey[]
-  flowkickClients       FlowkickClient[]
+  tools                    Tool[]
+  manychatConfig           ManychatConfig?
+  tags                     Tag[]
+  webhookSubscriptions     WebhookSubscription[]
+  dataExports              DataExport[]
+  verificationApiKeys      VerificationApiKey[]
+  instagramVerifications   InstagramVerification[]
+  flowkickClients          FlowkickClient[]
 
   @@index([email])
 }
@@ -452,42 +453,83 @@ model AIMessage {
 // ============================================================================
 
 model VerificationApiKey {
-  id         String   @id @default(cuid())
-  key        String   @unique // SHA-256 hashed
-  name       String   // Website name
-  adminId    String
-  webhookUrl String?
-  rateLimit  Int      @default(100) // Requests per hour
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  id                  String   @id @default(cuid())
+  adminId             String   // Admin who owns this API key
+  name                String   // Friendly name (e.g., "My E-commerce Site")
+  apiKey              String   @unique // The actual API key (SHA-256 hashed)
+  websiteDomain       String   // Domain this key is for
+  active              Boolean  @default(true)
+
+  // Rate limiting configuration
+  maxRequestsPerHour  Int      @default(100)
+  maxRequestsPerDay   Int      @default(1000)
+
+  // Prefix configuration
+  servicePrefix       String   // Which prefix this key uses (e.g., "H45", "X7K")
+
+  // Usage tracking
+  lastUsedAt          DateTime?
+  requestCount        Int      @default(0)
+
+  // Metadata
+  metadata            String?  // JSON for webhook URLs, allowed IPs, etc.
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   // Relations
   admin         Admin                   @relation(fields: [adminId], references: [id], onDelete: Cascade)
   verifications InstagramVerification[]
 
   @@index([adminId])
-  @@index([key])
-  @@index([isActive])
+  @@index([apiKey])
+  @@index([active])
 }
 
 model InstagramVerification {
-  id         String    @id @default(cuid())
-  code       String    @unique
-  apiKeyId   String
-  sessionId  String?   // External website session ID
-  status     String    // pending, verified, expired
-  igUsername String?
-  expiresAt  DateTime
-  verifiedAt DateTime?
-  metadata   Json?     // Custom data from website
-  createdAt  DateTime  @default(now())
+  id              String    @id @default(cuid())
+  code            String    @unique // Full code (e.g., "H45-73-XYZ")
+  servicePrefix   String    // Service identifier (e.g., "H45")
+  sessionId       String    // Session identifier (e.g., "73")
+  suffix          String    // Random suffix for security (e.g., "XYZ")
+
+  // External website integration
+  adminId         String    // Admin who owns this verification service
+  externalWebsite String    // Domain or identifier of requesting website
+  externalUserId  String?   // External site's user ID (if provided)
+  webhookUrl      String?   // URL to POST validation result
+  callbackToken   String?   // Secret token for webhook authentication
+  apiKeyUsed      String?   // Which API key was used to generate this
+
+  // Instagram user (populated when DM is received)
+  userId          String?
+  igUsername      String?   // Instagram username who sent the DM
+  instagramId     String?   // Instagram platform ID
+  manychatUserId  String?   // Manychat subscriber ID
+
+  // Status tracking
+  status          String    @default("pending") // pending, verified, expired, failed
+  dmReceivedAt    DateTime?
+  verifiedAt      DateTime?
+  failureReason   String?   // Why validation failed
+
+  // Security & rate limiting
+  expiresAt       DateTime  // Short TTL (default 10 minutes)
+  attemptCount    Int       @default(0) // Number of validation attempts
+  ipAddress       String?   // IP that requested code generation
+
+  // Metadata
+  metadata        String?   // JSON for custom data from website
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
-  apiKey VerificationApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  user   User?              @relation(fields: [igUsername], references: [igUsername])
+  admin  Admin                  @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  apiKey VerificationApiKey?    @relation(fields: [apiKeyUsed], references: [apiKey])
+  user   User?                  @relation(fields: [userId], references: [id])
 
   @@index([code])
-  @@index([apiKeyId])
+  @@index([adminId])
+  @@index([userId])
   @@index([status])
   @@index([expiresAt])
 }
