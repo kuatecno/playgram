@@ -101,6 +101,13 @@ export class DynamicGalleryService {
       config: {
         toolId: tool.id,
         autoSyncEnabled: fullConfig.autoSyncEnabled,
+        ingestMode: fullConfig.ingestMode,
+        ingestLimit: fullConfig.ingestLimit,
+        scheduledTimes: (fullConfig.scheduledTimes as any) || [],
+        shuffleWindows: (fullConfig.shuffleWindows as any) || [],
+        orderingRules: (fullConfig.orderingRules as any) || [],
+        stagedPayloadCount: fullConfig.stagedPayload ? (Array.isArray(fullConfig.stagedPayload) ? fullConfig.stagedPayload.length : 0) : 0,
+        lastScheduledSyncAt: fullConfig.lastScheduledSyncAt?.toISOString() || null,
         lastSyncedAt: fullConfig.lastSyncedAt?.toISOString() || null,
         lastWebhookAt: fullConfig.lastWebhookAt?.toISOString() || null,
         lastSyncStatus: (fullConfig.lastSyncStatus as any) || null,

@@ -186,15 +186,29 @@ model Tool {
 // DYNAMIC GALLERY
 // ============================================================================
 
+enum DynamicGalleryIngestMode {
+  immediate_top
+  scheduled_top
+  scheduled_shuffle
+  scheduled_rules
+}
+
 model DynamicGalleryConfig {
-  id               String                      @id @default(cuid())
-  toolId           String                      @unique
-  autoSyncEnabled  Boolean                     @default(true)
-  lastSyncedAt     DateTime?
-  lastWebhookAt    DateTime?
-  lastSyncStatus   DynamicGallerySyncStatus?
-  createdAt        DateTime                    @default(now())
-  updatedAt        DateTime                    @updatedAt
+  id                  String                      @id @default(cuid())
+  toolId              String                      @unique
+  autoSyncEnabled     Boolean                     @default(true)
+  ingestMode          DynamicGalleryIngestMode    @default(immediate_top)
+  ingestLimit         Int?
+  scheduledTimes      Json?
+  shuffleWindows      Json?
+  orderingRules       Json?
+  stagedPayload       Json?
+  lastScheduledSyncAt DateTime?
+  lastSyncedAt        DateTime?
+  lastWebhookAt       DateTime?
+  lastSyncStatus      DynamicGallerySyncStatus?
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
 
   // Relations
   tool      Tool                     @relation(fields: [toolId], references: [id], onDelete: Cascade)

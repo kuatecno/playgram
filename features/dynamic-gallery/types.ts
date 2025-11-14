@@ -22,6 +22,24 @@ export const dynamicGalleryButtonSchema = z.object({
     }
   )
 
+
+export interface ShuffleWindowConfig {
+  label: string
+  start: string // HH:MM
+  end: string // HH:MM
+  days?: number[] // 0 (Sunday) - 6 (Saturday)
+}
+
+export interface OrderingRuleConfig {
+  label: string
+  start?: string // HH:MM
+  end?: string // HH:MM
+  days?: number[]
+  order: string[] // Title/identifier priority order
+}
+
+export type DynamicGalleryIngestMode = 'immediate_top' | 'scheduled_top' | 'scheduled_shuffle' | 'scheduled_rules'
+
 export const dynamicGalleryCardSchema = z.object({
   id: z.string().optional(),
   imageUrl: z.string().url().max(2048),
@@ -86,6 +104,13 @@ export interface DynamicGallerySummaryDTO {
   config: {
     toolId: string
     autoSyncEnabled: boolean
+    ingestMode: 'immediate_top' | 'scheduled_top' | 'scheduled_shuffle' | 'scheduled_rules'
+    ingestLimit: number | null
+    scheduledTimes: string[]
+    shuffleWindows: ShuffleWindowConfig[]
+    orderingRules: OrderingRuleConfig[]
+    stagedPayloadCount: number
+    lastScheduledSyncAt: string | null
     lastSyncedAt: string | null
     lastWebhookAt: string | null
     lastSyncStatus: 'success' | 'warning' | 'failed' | null
