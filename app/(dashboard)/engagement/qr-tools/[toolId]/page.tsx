@@ -62,11 +62,6 @@ const TOKEN_CATEGORIES = {
     { token: '{{email}}', description: 'Email address (if synced)', example: 'john@example.com' },
     { token: '{{manychat_id}}', description: 'ManyChat subscriber ID', example: '123456789' },
   ],
-  'Dynamic Fields': [
-    { token: '{{tag:TAG_ID}}', description: 'Tag name by ID', example: 'VIP' },
-    { token: '{{custom_field:FIELD_ID}}', description: 'Custom field value by ID', example: 'Gold' },
-    { token: '{{metadata:KEY}}', description: 'Metadata key at generation time', example: 'campaign-2024' },
-  ],
   'System Values': [
     { token: '{{random}}', description: 'Random 6-char string', example: 'aB3x9Z' },
     { token: '{{random:10}}', description: 'Random 10-char string', example: 'aB3x9ZpQm2' },
@@ -118,6 +113,20 @@ type Tool = {
   createdAt: string
 }
 
+type User = {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  igUsername: string | null
+  manychatId: string | null
+}
+
+type Tag = {
+  id: string
+  name: string
+  manychatId: string | null
+}
+
 type QrToolSettings = {
   qrFormat: string
   qrAppearance: typeof DEFAULT_APPEARANCE
@@ -155,9 +164,14 @@ export default function QrToolConfigPage() {
   const [formatPattern, setFormatPattern] = useState('')
   const [formatPreview, setFormatPreview] = useState('')
   const [previewingFormat, setPreviewingFormat] = useState(false)
-  const [metadataDraft, setMetadataDraft] = useState<string>('{}')
   const [formatSaving, setFormatSaving] = useState(false)
   const formatTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+
+  const [users, setUsers] = useState<User[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [tags, setTags] = useState<Tag[]>([])
+  const [customFields, setCustomFields] = useState<ManychatField[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
 
   const [appearance, setAppearance] = useState<typeof DEFAULT_APPEARANCE>(DEFAULT_APPEARANCE)
   const [appearanceSaving, setAppearanceSaving] = useState(false)
@@ -191,6 +205,51 @@ export default function QrToolConfigPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toolId])
+
+  useEffect(() => {
+    loadUsersAndFields()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function loadUsersAndFields() {
+    setLoadingUsers(true)
+    try {
+      // Load users for preview
+      const usersRes = await fetch('/api/v1/users/manychat-contacts?limit=20')
+      const usersData = await usersRes.json()
+      if (usersData.success) {
+        const loadedUsers = (usersData.data?.contacts || []).map((c: any) => ({
+          id: c.id,
+          firstName: c.firstName,
+          lastName: c.lastName,
+          igUsername: c.igUsername,
+          manychatId: c.manychatId,
+        }))
+        setUsers(loadedUsers)
+        if (loadedUsers.length > 0) {
+          setSelectedUserId(loadedUsers[0].id)
+        }
+      }
+
+      // Tags API not available yet - would load tags here
+      // const tagsRes = await fetch('/api/v1/tags')
+      // const tagsData = await tagsRes.json()
+      // if (tagsData.success) {
+      //   setTags(tagsData.data || [])
+      // }
+
+      // Load custom fields for field selector
+      const fieldsRes = await fetch('/api/v1/manychat/fields')
+      const fieldsData = await fieldsRes.json()
+      if (fieldsData.success) {
+        setCustomFields(fieldsData.data || [])
+      }
+    } catch (error) {
+      console.error('Failed to load users/fields:', error)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
 
   async function initializePage() {
     setLoading(true)
@@ -352,27 +411,13 @@ export default function QrToolConfigPage() {
 
     setPreviewingFormat(true)
     try {
-      let metadataPayload: Record<string, unknown> | undefined
-      if (metadataDraft.trim()) {
-        try {
-          metadataPayload = JSON.parse(metadataDraft)
-        } catch (error) {
-          toast({
-            title: 'Invalid metadata JSON',
-            description: 'Please provide valid JSON before previewing.',
-            variant: 'destructive',
-          })
-          return
-        }
-      }
-
       const res = await fetch('/api/v1/qr/format-preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           toolId,
           pattern: formatPattern,
-          metadata: metadataPayload,
+          userId: selectedUserId || undefined,
         }),
       })
       const data = await res.json()
@@ -745,21 +790,33 @@ export default function QrToolConfigPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="metadataDraft">Optional metadata (JSON)</Label>
-                  <Textarea
-                    id="metadataDraft"
-                    rows={4}
-                    value={metadataDraft}
-                    onChange={(event) => setMetadataDraft(event.target.value)}
-                  />
+                  <Label htmlFor="previewUser">Preview with user</Label>
+                  <select
+                    id="previewUser"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={selectedUserId}
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    disabled={loadingUsers || users.length === 0}
+                  >
+                    {users.length === 0 ? (
+                      <option value="">No users found</option>
+                    ) : (
+                      users.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.firstName || user.igUsername || user.manychatId || 'Unknown'}
+                          {user.lastName && ` ${user.lastName}`}
+                        </option>
+                      ))
+                    )}
+                  </select>
                   <p className="text-xs text-muted-foreground">
-                    Provide sample metadata keys for previewing {'{{metadata:key}}'} tokens.
+                    Select a user to see real data in the preview
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Preview</Label>
-                  <div className="rounded-md border bg-muted p-3 font-mono text-sm">
-                    {formatPreview ? formatPreview : 'Run a preview to visualize the resolved value.'}
+                  <div className="rounded-md border bg-muted p-3 font-mono text-sm min-h-[40px] flex items-center">
+                    {formatPreview ? formatPreview : 'Click preview to see the result'}
                   </div>
                 </div>
               </div>
@@ -812,6 +869,34 @@ export default function QrToolConfigPage() {
                   </div>
                 </div>
               ))}
+
+              {customFields.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-muted-foreground">Dynamic Fields</h4>
+                  <div className="grid gap-3">
+                    <div className="space-y-2 rounded-lg border p-3">
+                      <Label className="text-xs font-medium">Insert Custom Field</Label>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            insertToken(`{{custom_field:${e.target.value}}}`)
+                            e.target.value = ''
+                          }
+                        }}
+                      >
+                        <option value="">Select a ManyChat custom field...</option>
+                        {customFields.map((field) => (
+                          <option key={field.id} value={field.id}>
+                            {field.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground">Inserts custom field value from ManyChat</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
