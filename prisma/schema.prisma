@@ -17,7 +17,7 @@ model QRToolConfig {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  tool Tool @relation(fields: [toolId], references: [id], onDelete: Restrict)
+  tool Tool @relation(fields: [toolId], references: [id], onDelete: Cascade)
 }
 
 datasource db {
