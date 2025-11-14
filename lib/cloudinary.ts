@@ -19,7 +19,12 @@ export async function uploadGalleryImage(
   file: string | Buffer,
   folder: string = 'playgram/gallery'
 ) {
-  const result = await cloudinary.uploader.upload(file, {
+  // Convert Buffer to base64 data URL if needed
+  const fileData = Buffer.isBuffer(file)
+    ? `data:image/png;base64,${file.toString('base64')}`
+    : file
+
+  const result = await cloudinary.uploader.upload(fileData, {
     folder,
     // Crop to 5:6 aspect ratio (1080x1296)
     transformation: [
