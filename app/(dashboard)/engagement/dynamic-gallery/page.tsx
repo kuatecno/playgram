@@ -766,7 +766,7 @@ export default function DynamicGalleryPage() {
                 placeholder="https://example.com (defaults to first button)"
               />
               <p className="text-xs text-muted-foreground">
-                Where users go when they tap the image. Defaults to the first button's URL if left empty.
+                Where users go when they tap the image. Defaults to the first button&apos;s URL if left empty.
               </p>
             </div>
             <div className="grid gap-3">
