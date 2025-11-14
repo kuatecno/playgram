@@ -24,7 +24,6 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -93,6 +92,34 @@ const ERROR_CORRECTION_LEVELS = [
 
 type QrFieldKey = (typeof AVAILABLE_QR_FIELDS)[number]['key']
 
+type ExtendedQrFieldKey = QrFieldKey | 'validation_status'
+
+type SyncTimingOption = 'none' | 'sent' | 'validated_success' | 'validated_failed' | 'validation_all'
+
+const CORE_VALIDATION_FIELD: {
+  key: ExtendedQrFieldKey
+  label: string
+  description: string
+  dataType: string
+} = {
+  key: 'validation_status',
+  label: 'Validation status (core)',
+  description: 'Status or failure reason resolved after validation events',
+  dataType: 'text',
+}
+
+const FIELD_MAPPING_ROWS = [CORE_VALIDATION_FIELD, ...AVAILABLE_QR_FIELDS]
+
+const SYNC_TIMING_OPTIONS: { value: SyncTimingOption; label: string }[] = [
+  { value: 'none', label: 'Do not sync' },
+  { value: 'sent', label: 'On send' },
+  { value: 'validated_success', label: 'On validation — success' },
+  { value: 'validated_failed', label: 'On validation — failed' },
+  { value: 'validation_all', label: 'On both validations' },
+]
+
+const CREATE_FIELD_OPTION = '__create_field__'
+
 type ManychatField = {
   id: string
   name: string
@@ -100,10 +127,35 @@ type ManychatField = {
 }
 
 type FieldMappingRow = {
-  qrField: QrFieldKey
+  qrField: ExtendedQrFieldKey
   manychatFieldId: string
   manychatFieldName: string
   enabled: boolean
+  syncTiming: SyncTimingOption
+}
+
+function normalizeFieldMappings(rawMappings: any[]): FieldMappingRow[] {
+  if (!Array.isArray(rawMappings)) {
+    return []
+  }
+
+  const deduped = new Map<ExtendedQrFieldKey, FieldMappingRow>()
+
+  rawMappings.forEach((mapping: any) => {
+    const qrField = (mapping?.qrField as ExtendedQrFieldKey) || 'qr_code'
+    const manychatFieldId = mapping?.manychatFieldId || ''
+    const syncTiming = (mapping?.syncTiming as SyncTimingOption) || (mapping?.enabled ? 'validation_all' : 'none')
+
+    deduped.set(qrField, {
+      qrField,
+      manychatFieldId,
+      manychatFieldName: mapping?.manychatFieldName || '',
+      syncTiming,
+      enabled: Boolean(manychatFieldId && syncTiming !== 'none'),
+    })
+  })
+
+  return Array.from(deduped.values())
 }
 
 type Tool = {
@@ -207,7 +259,7 @@ export default function QrToolConfigPage() {
 
   const [manychatConnected, setManychatConnected] = useState(false)
   const [manychatFields, setManychatFields] = useState<ManychatField[]>([])
-  const [fieldMappings, setFieldMappings] = useState<FieldMappingRow[]>([])
+  const [fieldMappings, setFieldMappings] = useState<FieldMappingRow[]>(() => normalizeFieldMappings([]))
   const [fieldMappingsSaving, setFieldMappingsSaving] = useState(false)
   const [loadingManychat, setLoadingManychat] = useState(false)
 
@@ -215,6 +267,8 @@ export default function QrToolConfigPage() {
   const [outcomeFieldMappings, setOutcomeFieldMappings] = useState<OutcomeFieldMapping[]>([])
   const [outcomeTagConfigs, setOutcomeTagConfigs] = useState<OutcomeTagConfig[]>([])
   const [_outcomeConfigSaving, setOutcomeConfigSaving] = useState(false) // Reserved for future save UI
+
+  const [pendingFieldRow, setPendingFieldRow] = useState<ExtendedQrFieldKey | null>(null)
 
   const [activityLoading, setActivityLoading] = useState(false)
 
@@ -707,14 +761,30 @@ export default function QrToolConfigPage() {
     }
   }
 
-  function updateFieldMapping(qrField: QrFieldKey, partial: Partial<FieldMappingRow>) {
+  function updateFieldMapping(qrField: ExtendedQrFieldKey, partial: Partial<FieldMappingRow>) {
     setFieldMappings((prev) => {
       const next = [...prev]
       const index = next.findIndex((item) => item.qrField === qrField)
+
       if (index === -1) {
-        next.push({ qrField, manychatFieldId: '', manychatFieldName: '', enabled: false, ...partial })
+        // New mapping - merge partial and compute enabled
+        const newMapping = {
+          qrField,
+          manychatFieldId: '',
+          manychatFieldName: '',
+          syncTiming: 'none' as SyncTimingOption,
+          enabled: false,
+          ...partial,
+        }
+        // Recompute enabled based on final values
+        newMapping.enabled = Boolean(newMapping.manychatFieldId && newMapping.syncTiming !== 'none')
+        next.push(newMapping)
       } else {
-        next[index] = { ...next[index], ...partial }
+        // Update existing mapping
+        const updated = { ...next[index], ...partial }
+        // Recompute enabled based on final values
+        updated.enabled = Boolean(updated.manychatFieldId && updated.syncTiming !== 'none')
+        next[index] = updated
       }
       return next
     })
@@ -1114,53 +1184,6 @@ export default function QrToolConfigPage() {
                 </p>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="previewUser">Preview with user</Label>
-                  <select
-                    id="previewUser"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value)}
-                    disabled={loadingUsers || users.length === 0}
-                  >
-                    {users.length === 0 ? (
-                      <option value="">No users found</option>
-                    ) : (
-                      users.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.firstName || user.igUsername || user.manychatId || 'Unknown'}
-                          {user.lastName && ` ${user.lastName}`}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    Select a user to see real data in the preview
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Preview</Label>
-                  <div className="rounded-md border bg-muted p-3 font-mono text-sm min-h-[40px] flex items-center">
-                    {formatPreview ? formatPreview : 'Click preview to see the result'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={handlePreviewFormat} disabled={previewingFormat}>
-                  {previewingFormat ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  Preview pattern
-                </Button>
-                <Button onClick={handleSaveFormat} disabled={formatSaving}>
-                  {formatSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Save format
-                </Button>
-              </div>
             </CardContent>
           </Card>
 
@@ -1225,6 +1248,61 @@ export default function QrToolConfigPage() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Preview & save</CardTitle>
+              <CardDescription>Choose a sample user, preview the output, then store the pattern.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="previewUser">Preview with user</Label>
+                  <select
+                    id="previewUser"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={selectedUserId}
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    disabled={loadingUsers || users.length === 0}
+                  >
+                    {users.length === 0 ? (
+                      <option value="">No users found</option>
+                    ) : (
+                      users.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.firstName || user.igUsername || user.manychatId || 'Unknown'}
+                          {user.lastName && ` ${user.lastName}`}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <p className="text-xs text-muted-foreground">Select a user to see real data in the preview.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Preview</Label>
+                  <div className="rounded-md border bg-muted p-3 font-mono text-sm min-h-[40px] flex items-center">
+                    {formatPreview ? formatPreview : 'Click preview to see the result'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={handlePreviewFormat} disabled={previewingFormat}>
+                  {previewingFormat ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  Preview pattern
+                </Button>
+                <Button onClick={handleSaveFormat} disabled={formatSaving}>
+                  {formatSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save format
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
         </TabsContent>
 
         <TabsContent value="appearance" className="space-y-6">
@@ -1432,12 +1510,14 @@ export default function QrToolConfigPage() {
                         <tr>
                           <th className="px-4 py-3 font-medium">QR field</th>
                           <th className="px-4 py-3 font-medium">ManyChat field</th>
-                          <th className="px-4 py-3 font-medium">Sync</th>
+                          <th className="px-4 py-3 font-medium">When to sync</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {AVAILABLE_QR_FIELDS.map((field) => {
+                        {FIELD_MAPPING_ROWS.map((field) => {
                           const mapping = fieldMappings.find((item) => item.qrField === field.key)
+                          const isCreatingField = pendingFieldRow === field.key
+
                           return (
                             <tr key={field.key} className="border-t">
                               <td className="px-4 py-3 align-top">
@@ -1445,35 +1525,79 @@ export default function QrToolConfigPage() {
                                 <div className="text-xs text-muted-foreground">{field.description}</div>
                               </td>
                               <td className="px-4 py-3 align-top">
+                                {isCreatingField ? (
+                                  <div className="space-y-2">
+                                    <Input
+                                      placeholder="Field name..."
+                                      value={newFieldName}
+                                      onChange={(e) => setNewFieldName(e.target.value)}
+                                      autoFocus
+                                    />
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={async () => {
+                                          await handleCreateCustomField()
+                                          updateFieldMapping(field.key, {
+                                            manychatFieldId: manychatFields.find((f) => f.name === newFieldName)?.id || '',
+                                            manychatFieldName: newFieldName,
+                                          })
+                                          setPendingFieldRow(null)
+                                        }}
+                                        disabled={!newFieldName.trim()}
+                                      >
+                                        Create
+                                      </Button>
+                                      <Button size="sm" variant="outline" onClick={() => setPendingFieldRow(null)}>
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <select
+                                    className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                                    value={mapping?.manychatFieldId || ''}
+                                    onChange={(event) => {
+                                      const value = event.target.value
+                                      if (value === CREATE_FIELD_OPTION) {
+                                        setPendingFieldRow(field.key)
+                                        setNewFieldName('')
+                                      } else {
+                                        updateFieldMapping(field.key, {
+                                          manychatFieldId: value,
+                                          manychatFieldName:
+                                            manychatFields.find((f) => f.id === value)?.name || '',
+                                        })
+                                      }
+                                    }}
+                                  >
+                                    <option value="">— Select field —</option>
+                                    {manychatFields.map((manychatField) => (
+                                      <option key={manychatField.id} value={manychatField.id}>
+                                        {manychatField.name}
+                                      </option>
+                                    ))}
+                                    <option value={CREATE_FIELD_OPTION}>+ Create new field</option>
+                                  </select>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 align-top">
                                 <select
                                   className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                                  value={mapping?.manychatFieldId || ''}
+                                  value={mapping?.syncTiming || 'none'}
                                   onChange={(event) =>
                                     updateFieldMapping(field.key, {
-                                      manychatFieldId: event.target.value,
-                                      manychatFieldName:
-                                        manychatFields.find((f) => f.id === event.target.value)?.name || '',
+                                      syncTiming: event.target.value as SyncTimingOption,
                                     })
                                   }
+                                  disabled={!mapping?.manychatFieldId}
                                 >
-                                  <option value="">Do not sync</option>
-                                  {manychatFields.map((manychatField) => (
-                                    <option key={manychatField.id} value={manychatField.id}>
-                                      {manychatField.name}
+                                  {SYNC_TIMING_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
                                     </option>
                                   ))}
                                 </select>
-                              </td>
-                              <td className="px-4 py-3 align-top">
-                                <div className="flex items-center gap-2">
-                                  <Switch
-                                    checked={mapping?.enabled || false}
-                                    onCheckedChange={(checked) =>
-                                      updateFieldMapping(field.key, { enabled: checked })
-                                    }
-                                  />
-                                  <span className="text-xs text-muted-foreground">Enable sync</span>
-                                </div>
                               </td>
                             </tr>
                           )
