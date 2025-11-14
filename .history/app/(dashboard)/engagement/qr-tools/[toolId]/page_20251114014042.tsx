@@ -121,6 +121,11 @@ type User = {
   manychatId: string | null
 }
 
+type Tag = {
+  id: string
+  name: string
+  manychatId: string | null
+}
 
 type QrToolSettings = {
   qrFormat: string
@@ -145,41 +150,11 @@ type QrCodeListItem = {
   expiresAt: string | null
 }
 
-type QRValidationOutcome = 'sent' | 'validated_success' | 'validated_failed'
-type QRFailureReason = 'wrong_person' | 'expired' | 'already_used' | 'other'
-
-type OutcomeFieldMapping = {
-  id: string
-  outcome: QRValidationOutcome
-  failureReason?: QRFailureReason
-  manychatFieldId: string
-  manychatFieldName: string
-  value: string
-  enabled: boolean
-}
-
-type OutcomeTagConfig = {
-  id: string
-  outcome: QRValidationOutcome
-  failureReason?: QRFailureReason
-  tagIds: string[]
-  tagNames: string[]
-  action: 'add' | 'remove'
-  enabled: boolean
-}
-
-type ManychatTag = {
-  id: string
-  name: string
-}
-
 export default function QrToolConfigPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
   const toolId = params.toolId as string
-
-  const [webhookUrl, setWebhookUrl] = useState('')
 
   const [loading, setLoading] = useState(true)
   const [tool, setTool] = useState<Tool | null>(null)
@@ -209,11 +184,6 @@ export default function QrToolConfigPage() {
   const [fieldMappings, setFieldMappings] = useState<FieldMappingRow[]>([])
   const [fieldMappingsSaving, setFieldMappingsSaving] = useState(false)
   const [loadingManychat, setLoadingManychat] = useState(false)
-
-  const [_manychatTags, setManychatTags] = useState<ManychatTag[]>([]) // Reserved for future tag UI
-  const [outcomeFieldMappings, setOutcomeFieldMappings] = useState<OutcomeFieldMapping[]>([])
-  const [outcomeTagConfigs, setOutcomeTagConfigs] = useState<OutcomeTagConfig[]>([])
-  const [_outcomeConfigSaving, setOutcomeConfigSaving] = useState(false) // Reserved for future save UI
 
   const [activityLoading, setActivityLoading] = useState(false)
 
@@ -293,10 +263,6 @@ export default function QrToolConfigPage() {
 
       setTool(toolData.data.tool)
 
-      // Set webhook URL
-      const baseUrl = window.location.origin
-      setWebhookUrl(`${baseUrl}/api/v1/webhooks/qr-validate`)
-
       await Promise.all([
         loadStats(),
         loadRecentCodes(),
@@ -375,18 +341,10 @@ export default function QrToolConfigPage() {
       setManychatConnected(connected)
 
       if (connected) {
-        await Promise.all([
-          loadManychatFields(),
-          loadManychatTags(),
-          loadFieldMappings(),
-          loadOutcomeMappings(),
-        ])
+        await Promise.all([loadManychatFields(), loadFieldMappings()])
       } else {
         setManychatFields([])
-        setManychatTags([])
         setFieldMappings([])
-        setOutcomeFieldMappings([])
-        setOutcomeTagConfigs([])
       }
     } catch (error) {
       console.error('Failed to load ManyChat status:', error)
@@ -419,45 +377,6 @@ export default function QrToolConfigPage() {
       }
     } catch (error) {
       console.error('Failed to load field mappings:', error)
-    }
-  }
-
-  async function loadManychatTags() {
-    try {
-      const res = await fetch('/api/v1/manychat/tags')
-      const data = await res.json()
-      if (data.success) {
-        setManychatTags(data.data || [])
-      }
-    } catch (error) {
-      console.error('Failed to load ManyChat tags:', error)
-    }
-  }
-
-  async function loadOutcomeMappings() {
-    try {
-      const res = await fetch(`/api/v1/qr/field-mapping?toolId=${toolId}`)
-      const data = await res.json()
-      if (data.success) {
-        const config = data.data?.config
-        if (config) {
-          // Load outcome field mappings
-          const outcomeFields = (config.outcomeFieldMappings || []).map((m: any, idx: number) => ({
-            id: `${idx}`,
-            ...m,
-          }))
-          setOutcomeFieldMappings(outcomeFields)
-
-          // Load outcome tag configs
-          const outcomeTags = (config.outcomeTagConfigs || []).map((t: any, idx: number) => ({
-            id: `${idx}`,
-            ...t,
-          }))
-          setOutcomeTagConfigs(outcomeTags)
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load outcome mappings:', error)
     }
   }
 
@@ -651,46 +570,6 @@ export default function QrToolConfigPage() {
       })
     } finally {
       setFieldMappingsSaving(false)
-    }
-  }
-
-  // Reserved for future outcome configuration UI
-  // @ts-expect-error - Function reserved for future use
-  async function handleSaveOutcomeConfig() {
-    setOutcomeConfigSaving(true)
-    try {
-      // Get existing config first
-      const existingRes = await fetch(`/api/v1/qr/field-mapping?toolId=${toolId}`)
-      const existingData = await existingRes.json()
-      const existingConfig = existingData.success ? existingData.data?.config : {}
-
-      const res = await fetch('/api/v1/qr/field-mapping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          toolId,
-          mappings: existingConfig?.mappings || [],
-          autoSyncOnScan: existingConfig?.autoSyncOnScan || false,
-          autoSyncOnValidation: existingConfig?.autoSyncOnValidation || false,
-          outcomeFieldMappings: outcomeFieldMappings.map(({ id, ...rest }) => rest),
-          outcomeTagConfigs: outcomeTagConfigs.map(({ id, ...rest }) => rest),
-        }),
-      })
-
-      const data = await res.json()
-      if (res.ok && data.success) {
-        toast({ title: 'Outcome configuration saved', description: 'Conditional mappings and tags updated.' })
-      } else {
-        throw new Error(data.error || 'Failed to save outcome configuration')
-      }
-    } catch (error) {
-      toast({
-        title: 'Failed to save outcome configuration',
-        description: error instanceof Error ? error.message : 'Please try again.',
-        variant: 'destructive',
-      })
-    } finally {
-      setOutcomeConfigSaving(false)
     }
   }
 
@@ -1117,74 +996,6 @@ export default function QrToolConfigPage() {
 
         <TabsContent value="integrations" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>ManyChat External Request Setup</CardTitle>
-              <CardDescription>
-                Configure a ManyChat External Request to validate QR codes and trigger conditional actions.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-sm font-medium">Webhook URL</Label>
-                  <div className="mt-1.5 flex gap-2">
-                    <Input
-                      readOnly
-                      value={webhookUrl}
-                      className="font-mono text-xs"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText(webhookUrl)
-                        toast({ title: 'Copied!', description: 'Webhook URL copied to clipboard' })
-                      }}
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    Use this URL in your ManyChat External Request action
-                  </p>
-                </div>
-
-                <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
-                  <h4 className="text-sm font-semibold">Setup Instructions:</h4>
-                  <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                    <li>In ManyChat, create a new Flow or edit an existing one</li>
-                    <li>Add an &quot;External Request&quot; action</li>
-                    <li>Set Request Type to <code className="px-1 py-0.5 bg-background rounded">POST</code></li>
-                    <li>Paste the webhook URL above</li>
-                    <li>In the request body, send:
-                      <pre className="mt-2 p-2 bg-background rounded text-xs overflow-x-auto">
-{`{
-  "qr_code": "{{user_input}}",
-  "subscriber_id": "{{subscriber_id}}"
-}`}
-                      </pre>
-                    </li>
-                    <li>
-                      Configure conditional responses based on the outcome:
-                      <ul className="mt-1 ml-6 space-y-1 list-disc">
-                        <li><code className="text-xs">outcome</code> = &quot;validated_success&quot; → Success flow</li>
-                        <li><code className="text-xs">outcome</code> = &quot;validated_failed&quot; → Failure flow</li>
-                        <li><code className="text-xs">failure_reason</code> = &quot;expired&quot;, &quot;wrong_person&quot;, etc.</li>
-                      </ul>
-                    </li>
-                  </ol>
-                </div>
-
-                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-                  <p className="text-xs text-blue-900">
-                    <strong>Tip:</strong> Configure conditional field mappings and tags below to automatically update custom fields and apply tags based on validation outcomes (QR sent, validated successfully, or validation failed).
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle>ManyChat integration</CardTitle>
@@ -1288,72 +1099,6 @@ export default function QrToolConfigPage() {
                       <Upload className="mr-2 h-4 w-4" /> Connect ManyChat
                     </Link>
                   </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Outcome-Based Configuration (Advanced)</CardTitle>
-              <CardDescription>
-                Configure conditional field updates and tag application based on QR validation outcomes
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
-                <h4 className="text-sm font-semibold">Available Outcomes:</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-start gap-2">
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">sent</Badge>
-                    <span className="text-muted-foreground">QR code generated and sent to user</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">validated_success</Badge>
-                    <span className="text-muted-foreground">QR code successfully validated</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">validated_failed</Badge>
-                    <span className="text-muted-foreground">Validation failed (wrong_person, expired, already_used, other)</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
-                <p className="text-xs text-amber-900">
-                  <strong>Note:</strong> Outcome-based field mappings and tags are configured via the API. Each outcome can trigger specific custom field updates and tag operations. See the External Request Setup above for integration details.
-                </p>
-              </div>
-
-              {manychatConnected && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold">Current Configuration</h4>
-                    <Badge variant="outline">
-                      {outcomeFieldMappings.length + outcomeTagConfigs.length} rules configured
-                    </Badge>
-                  </div>
-
-                  {(outcomeFieldMappings.length > 0 || outcomeTagConfigs.length > 0) && (
-                    <div className="rounded-md border p-3 text-sm space-y-2">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span className="text-muted-foreground">
-                          {outcomeFieldMappings.filter(m => m.enabled).length} field mapping{outcomeFieldMappings.filter(m => m.enabled).length !== 1 ? 's' : ''} enabled
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span className="text-muted-foreground">
-                          {outcomeTagConfigs.filter(t => t.enabled).length} tag configuration{outcomeTagConfigs.filter(t => t.enabled).length !== 1 ? 's' : ''} enabled
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  <p className="text-xs text-muted-foreground">
-                    To modify outcome-based configuration, use the Field Mapping API endpoint with <code className="px-1 py-0.5 bg-background rounded">outcomeFieldMappings</code> and <code className="px-1 py-0.5 bg-background rounded">outcomeTagConfigs</code> parameters.
-                  </p>
                 </div>
               )}
             </CardContent>

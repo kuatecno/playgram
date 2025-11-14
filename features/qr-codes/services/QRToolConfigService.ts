@@ -18,7 +18,30 @@ export interface QRAppearanceSettings {
   lightColor?: string
 }
 
+export type QRValidationOutcome = 'sent' | 'validated_success' | 'validated_failed'
+
+export type QRFailureReason = 'wrong_person' | 'expired' | 'already_used' | 'other'
+
+export interface QROutcomeFieldMapping {
+  outcome: QRValidationOutcome
+  failureReason?: QRFailureReason // Only for validated_failed
+  manychatFieldId: string
+  manychatFieldName: string
+  value: string // Can include tokens like {{qr_code}}, {{timestamp}}, etc.
+  enabled: boolean
+}
+
+export interface QROutcomeTagConfig {
+  outcome: QRValidationOutcome
+  failureReason?: QRFailureReason // Only for validated_failed
+  tagIds: string[] // ManyChat tag IDs to apply
+  tagNames: string[] // Tag names for display
+  action: 'add' | 'remove'
+  enabled: boolean
+}
+
 export interface QRFieldMappingConfigData {
+  // Legacy simple mappings (deprecated but kept for backward compatibility)
   mappings: Array<{
     qrField: string
     manychatFieldId: string
@@ -27,6 +50,10 @@ export interface QRFieldMappingConfigData {
   }>
   autoSyncOnScan: boolean
   autoSyncOnValidation: boolean
+
+  // New conditional mappings
+  outcomeFieldMappings?: QROutcomeFieldMapping[]
+  outcomeTagConfigs?: QROutcomeTagConfig[]
 }
 
 export interface QRToolSecurityPolicy {
@@ -60,6 +87,8 @@ const DEFAULT_FIELD_MAPPING_CONFIG: QRFieldMappingConfigData = {
   mappings: [],
   autoSyncOnScan: false,
   autoSyncOnValidation: false,
+  outcomeFieldMappings: [],
+  outcomeTagConfigs: [],
 }
 
 class QRToolConfigService {

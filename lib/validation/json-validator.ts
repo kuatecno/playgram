@@ -125,6 +125,22 @@ export function isQRFieldMappingConfig(value: unknown): value is {
   }>
   autoSyncOnScan: boolean
   autoSyncOnValidation: boolean
+  outcomeFieldMappings?: Array<{
+    outcome: string
+    failureReason?: string
+    manychatFieldId: string
+    manychatFieldName: string
+    value: string
+    enabled: boolean
+  }>
+  outcomeTagConfigs?: Array<{
+    outcome: string
+    failureReason?: string
+    tagIds: string[]
+    tagNames: string[]
+    action: string
+    enabled: boolean
+  }>
 } {
   if (typeof value !== 'object' || value === null) {
     return false
@@ -145,6 +161,36 @@ export function isQRFieldMappingConfig(value: unknown): value is {
     if (typeof m.manychatFieldId !== 'string') return false
     if (typeof m.manychatFieldName !== 'string') return false
     if (typeof m.enabled !== 'boolean') return false
+  }
+
+  // Validate outcomeFieldMappings if present
+  if (obj.outcomeFieldMappings !== undefined) {
+    if (!Array.isArray(obj.outcomeFieldMappings)) return false
+    for (const mapping of obj.outcomeFieldMappings) {
+      if (typeof mapping !== 'object' || mapping === null) return false
+      const m = mapping as Record<string, unknown>
+      if (typeof m.outcome !== 'string') return false
+      if (m.failureReason !== undefined && typeof m.failureReason !== 'string') return false
+      if (typeof m.manychatFieldId !== 'string') return false
+      if (typeof m.manychatFieldName !== 'string') return false
+      if (typeof m.value !== 'string') return false
+      if (typeof m.enabled !== 'boolean') return false
+    }
+  }
+
+  // Validate outcomeTagConfigs if present
+  if (obj.outcomeTagConfigs !== undefined) {
+    if (!Array.isArray(obj.outcomeTagConfigs)) return false
+    for (const config of obj.outcomeTagConfigs) {
+      if (typeof config !== 'object' || config === null) return false
+      const c = config as Record<string, unknown>
+      if (typeof c.outcome !== 'string') return false
+      if (c.failureReason !== undefined && typeof c.failureReason !== 'string') return false
+      if (!Array.isArray(c.tagIds)) return false
+      if (!Array.isArray(c.tagNames)) return false
+      if (typeof c.action !== 'string') return false
+      if (typeof c.enabled !== 'boolean') return false
+    }
   }
 
   return true
