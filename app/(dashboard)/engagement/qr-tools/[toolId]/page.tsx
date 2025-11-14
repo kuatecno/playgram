@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
@@ -46,20 +46,34 @@ const DEFAULT_APPEARANCE = {
   lightColor: '#FFFFFF',
 }
 
-const TOKEN_REFERENCE = [
-  { token: '{{first_name}}', description: 'Contact first name' },
-  { token: '{{last_name}}', description: 'Contact last name' },
-  { token: '{{full_name}}', description: 'Contact full name' },
-  { token: '{{igUsername}} / {{ig_username}}', description: 'Instagram username' },
-  { token: '{{email}}', description: 'Email address (if synced)' },
-  { token: '{{manychat_id}}', description: 'ManyChat subscriber ID' },
-  { token: '{{tag:TAG_ID}}', description: 'Tag name by tag ID or ManyChat ID' },
-  { token: '{{custom_field:FIELD_ID}}', description: 'Custom field value by ID' },
-  { token: '{{metadata:KEY}}', description: 'Metadata key provided at generation time' },
-  { token: '{{random}} / {{random:10}}', description: 'Random alphanumeric string (default length 6)' },
-  { token: '{{timestamp}}', description: 'Unix timestamp (seconds)' },
-  { token: '{{date}}', description: 'Current date formatted as YYYYMMDD' },
+const PATTERN_TEMPLATES = [
+  { name: 'Simple Promotion', pattern: 'PROMO-{{random:8}}', description: 'Random promotional code' },
+  { name: 'Personalized Discount', pattern: 'DISC-{{first_name}}-{{random:6}}', description: 'User-specific discount' },
+  { name: 'Event Check-in', pattern: 'EVENT-{{igUsername}}-{{timestamp}}', description: 'Time-stamped event entry' },
+  { name: 'VIP Access', pattern: 'VIP-{{manychat_id}}-{{date}}', description: 'Date-based VIP code' },
 ]
+
+const TOKEN_CATEGORIES = {
+  'User Info': [
+    { token: '{{first_name}}', description: 'Contact first name', example: 'John' },
+    { token: '{{last_name}}', description: 'Contact last name', example: 'Doe' },
+    { token: '{{full_name}}', description: 'Contact full name', example: 'John Doe' },
+    { token: '{{igUsername}}', description: 'Instagram username', example: '@johndoe' },
+    { token: '{{email}}', description: 'Email address (if synced)', example: 'john@example.com' },
+    { token: '{{manychat_id}}', description: 'ManyChat subscriber ID', example: '123456789' },
+  ],
+  'Dynamic Fields': [
+    { token: '{{tag:TAG_ID}}', description: 'Tag name by ID', example: 'VIP' },
+    { token: '{{custom_field:FIELD_ID}}', description: 'Custom field value by ID', example: 'Gold' },
+    { token: '{{metadata:KEY}}', description: 'Metadata key at generation time', example: 'campaign-2024' },
+  ],
+  'System Values': [
+    { token: '{{random}}', description: 'Random 6-char string', example: 'aB3x9Z' },
+    { token: '{{random:10}}', description: 'Random 10-char string', example: 'aB3x9ZpQm2' },
+    { token: '{{timestamp}}', description: 'Unix timestamp (seconds)', example: '1699564800' },
+    { token: '{{date}}', description: 'Current date YYYYMMDD', example: '20241113' },
+  ],
+}
 
 const AVAILABLE_QR_FIELDS = [
   { key: 'qr_code', label: 'QR Code', description: 'Resolved QR value sent to the scanner', dataType: 'text' },
@@ -143,6 +157,7 @@ export default function QrToolConfigPage() {
   const [previewingFormat, setPreviewingFormat] = useState(false)
   const [metadataDraft, setMetadataDraft] = useState<string>('{}')
   const [formatSaving, setFormatSaving] = useState(false)
+  const formatTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const [appearance, setAppearance] = useState<typeof DEFAULT_APPEARANCE>(DEFAULT_APPEARANCE)
   const [appearanceSaving, setAppearanceSaving] = useState(false)
@@ -305,6 +320,28 @@ export default function QrToolConfigPage() {
     } catch (error) {
       console.error('Failed to load field mappings:', error)
     }
+  }
+
+  function insertToken(token: string) {
+    const textarea = formatTextareaRef.current
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = formatPattern
+
+    const before = text.substring(0, start)
+    const after = text.substring(end)
+    const newText = before + token + after
+
+    setFormatPattern(newText)
+
+    // Set cursor position after inserted token
+    setTimeout(() => {
+      textarea.focus()
+      const newCursorPos = start + token.length
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
+    }, 0)
   }
 
   async function handlePreviewFormat() {
@@ -671,9 +708,30 @@ export default function QrToolConfigPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground font-normal">Quick start templates</Label>
+                  <div className="grid gap-2 md:grid-cols-2 mt-2">
+                    {PATTERN_TEMPLATES.map((template) => (
+                      <button
+                        key={template.name}
+                        type="button"
+                        onClick={() => setFormatPattern(template.pattern)}
+                        className="flex flex-col items-start gap-1 rounded-lg border p-2.5 text-left transition-colors hover:bg-accent hover:border-accent-foreground/20"
+                      >
+                        <div className="font-medium text-sm">{template.name}</div>
+                        <code className="font-mono text-xs text-primary">{template.pattern}</code>
+                        <p className="text-xs text-muted-foreground">{template.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="formatPattern">Format pattern</Label>
                 <Textarea
+                  ref={formatTextareaRef}
                   id="formatPattern"
                   rows={4}
                   placeholder="PROMO-{{first_name}}-{{random:6}}"
@@ -681,7 +739,7 @@ export default function QrToolConfigPage() {
                   onChange={(event) => setFormatPattern(event.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Tokens are replaced at generation time. Leave blank to automatically generate random values.
+                  Click tokens below to insert them, or type manually. Tokens are replaced at generation time.
                 </p>
               </div>
 
@@ -725,18 +783,35 @@ export default function QrToolConfigPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Token reference</CardTitle>
-              <CardDescription>Supported tokens for composing QR values.</CardDescription>
+              <CardTitle>Available tokens</CardTitle>
+              <CardDescription>Click any token to insert it at your cursor position.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 md:grid-cols-2">
-                {TOKEN_REFERENCE.map((token) => (
-                  <div key={token.token} className="rounded-lg border p-3">
-                    <p className="font-mono text-sm font-medium">{token.token}</p>
-                    <p className="text-xs text-muted-foreground">{token.description}</p>
+            <CardContent className="space-y-6">
+              {Object.entries(TOKEN_CATEGORIES).map(([category, tokens]) => (
+                <div key={category} className="space-y-3">
+                  <h4 className="text-sm font-semibold text-muted-foreground">{category}</h4>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {tokens.map((token) => (
+                      <button
+                        key={token.token}
+                        type="button"
+                        onClick={() => insertToken(token.token)}
+                        className="group flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors hover:bg-accent hover:border-accent-foreground/20"
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <code className="font-mono text-xs font-semibold text-primary group-hover:text-accent-foreground">
+                            {token.token}
+                          </code>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{token.description}</p>
+                        <p className="text-xs font-mono text-muted-foreground/70">
+                          e.g., {token.example}
+                        </p>
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
