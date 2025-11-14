@@ -35,6 +35,7 @@ import {
   Upload,
   AlertCircle,
   Trash2,
+  Plus,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -219,6 +220,18 @@ export default function QrToolConfigPage() {
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  // Create custom field dialog
+  const [showCreateFieldDialog, setShowCreateFieldDialog] = useState(false)
+  const [newFieldName, setNewFieldName] = useState('')
+  const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date' | 'datetime' | 'boolean'>('text')
+  const [newFieldDescription, setNewFieldDescription] = useState('')
+  const [creatingField, setCreatingField] = useState(false)
+
+  // Create tag dialog
+  const [showCreateTagDialog, setShowCreateTagDialog] = useState(false)
+  const [newTagName, setNewTagName] = useState('')
+  const [creatingTag, setCreatingTag] = useState(false)
 
   const appearancePreviewStyle = useMemo(
     () => ({
@@ -739,6 +752,106 @@ export default function QrToolConfigPage() {
     }
   }
 
+  async function handleCreateCustomField() {
+    if (!newFieldName.trim()) {
+      toast({
+        title: 'Field name required',
+        description: 'Please enter a name for the custom field.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setCreatingField(true)
+    try {
+      const res = await fetch('/api/v1/manychat/fields', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newFieldName.trim(),
+          type: newFieldType,
+          description: newFieldDescription.trim() || undefined,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        toast({
+          title: 'Custom field created',
+          description: `Field "${newFieldName}" has been created in ManyChat.`,
+        })
+
+        // Reload fields
+        await loadManychatFields()
+
+        // Reset form and close dialog
+        setNewFieldName('')
+        setNewFieldType('text')
+        setNewFieldDescription('')
+        setShowCreateFieldDialog(false)
+      } else {
+        throw new Error(data.error || 'Failed to create custom field')
+      }
+    } catch (error) {
+      toast({
+        title: 'Failed to create custom field',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setCreatingField(false)
+    }
+  }
+
+  async function handleCreateTag() {
+    if (!newTagName.trim()) {
+      toast({
+        title: 'Tag name required',
+        description: 'Please enter a name for the tag.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setCreatingTag(true)
+    try {
+      const res = await fetch('/api/v1/manychat/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newTagName.trim(),
+        }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        toast({
+          title: 'Tag created',
+          description: `Tag "${newTagName}" has been created in ManyChat.`,
+        })
+
+        // Reload tags
+        await loadManychatTags()
+
+        // Reset form and close dialog
+        setNewTagName('')
+        setShowCreateTagDialog(false)
+      } else {
+        throw new Error(data.error || 'Failed to create tag')
+      }
+    } catch (error) {
+      toast({
+        title: 'Failed to create tag',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setCreatingTag(false)
+    }
+  }
+
   const connectedLabel = manychatConnected ? (
     <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
       <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Connected
@@ -820,6 +933,99 @@ export default function QrToolConfigPage() {
             <Button variant="destructive" onClick={handleDeleteTool} disabled={deleting}>
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Delete Tool
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCreateFieldDialog} onOpenChange={setShowCreateFieldDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Custom Field</DialogTitle>
+            <DialogDescription>
+              Create a new custom field in ManyChat to store QR data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="fieldName">Field Name</Label>
+              <Input
+                id="fieldName"
+                placeholder="e.g., playgram_qr_code"
+                value={newFieldName}
+                onChange={(e) => setNewFieldName(e.target.value)}
+                disabled={creatingField}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fieldType">Field Type</Label>
+              <select
+                id="fieldType"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={newFieldType}
+                onChange={(e) => setNewFieldType(e.target.value as any)}
+                disabled={creatingField}
+              >
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="date">Date</option>
+                <option value="datetime">Date & Time</option>
+                <option value="boolean">Boolean (Yes/No)</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fieldDescription">Description (Optional)</Label>
+              <Input
+                id="fieldDescription"
+                placeholder="e.g., Stores validated QR code value"
+                value={newFieldDescription}
+                onChange={(e) => setNewFieldDescription(e.target.value)}
+                disabled={creatingField}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateFieldDialog(false)} disabled={creatingField}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateCustomField} disabled={creatingField}>
+              {creatingField && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Field
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCreateTagDialog} onOpenChange={setShowCreateTagDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Tag</DialogTitle>
+            <DialogDescription>
+              Create a new tag in ManyChat for conditional QR outcomes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="tagName">Tag Name</Label>
+              <Input
+                id="tagName"
+                placeholder="e.g., QR_Validated"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                disabled={creatingTag}
+              />
+              <p className="text-xs text-muted-foreground">
+                This tag will be created in ManyChat and can be used for automation flows.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateTagDialog(false)} disabled={creatingTag}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTag} disabled={creatingTag}>
+              {creatingTag && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Tag
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1211,9 +1417,14 @@ export default function QrToolConfigPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold">Field mapping</h3>
-                    <Button size="sm" variant="outline" onClick={loadManychatStatus}>
-                      <RefreshCw className="mr-2 h-4 w-4" /> Refresh fields
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setShowCreateFieldDialog(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> Create Field
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={loadManychatStatus}>
+                        <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+                      </Button>
+                    </div>
                   </div>
                   <div className="overflow-hidden rounded-md border">
                     <table className="w-full text-left text-sm">
@@ -1329,9 +1540,14 @@ export default function QrToolConfigPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold">Current Configuration</h4>
-                    <Badge variant="outline">
-                      {outcomeFieldMappings.length + outcomeTagConfigs.length} rules configured
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setShowCreateTagDialog(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> Create Tag
+                      </Button>
+                      <Badge variant="outline">
+                        {outcomeFieldMappings.length + outcomeTagConfigs.length} rules configured
+                      </Badge>
+                    </div>
                   </div>
 
                   {(outcomeFieldMappings.length > 0 || outcomeTagConfigs.length > 0) && (
@@ -1352,7 +1568,7 @@ export default function QrToolConfigPage() {
                   )}
 
                   <p className="text-xs text-muted-foreground">
-                    To modify outcome-based configuration, use the Field Mapping API endpoint with <code className="px-1 py-0.5 bg-background rounded">outcomeFieldMappings</code> and <code className="px-1 py-0.5 bg-background rounded">outcomeTagConfigs</code> parameters.
+                    To modify outcome-based configuration, use the Field Mapping API endpoint with <code className="px-1 py-0.5 bg-background rounded">outcomeFieldMappings</code> and <code className="px-1 py-0.5 bg-background rounded">outcomeTagConfigs</code> parameters. Use the buttons above to quickly create new fields or tags when needed.
                   </p>
                 </div>
               )}

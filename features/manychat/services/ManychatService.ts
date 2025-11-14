@@ -338,6 +338,48 @@ export class ManychatService {
   }
 
   /**
+   * Create a new tag in Manychat
+   */
+  async createTag(adminId: string, name: string): Promise<ManychatTag> {
+    const apiToken = await this.getApiToken(adminId)
+    if (!apiToken) {
+      throw new Error('Manychat not configured')
+    }
+
+    const response = await this.makeRequest<{ data: ManychatTag }>(
+      '/fb/page/createTag',
+      apiToken,
+      {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      }
+    )
+
+    if (!response.data) {
+      throw new Error('Failed to create tag')
+    }
+
+    // Sync the new tag to our database
+    try {
+      await db.tag.upsert({
+        where: { manychatId: response.data.id },
+        create: {
+          name: response.data.name,
+          manychatId: response.data.id,
+          adminId,
+        },
+        update: {
+          name: response.data.name,
+        },
+      })
+    } catch (error) {
+      console.error('Failed to sync created tag to database:', error)
+    }
+
+    return response.data
+  }
+
+  /**
    * Sync tags from Manychat to database
    */
   async syncTags(adminId: string): Promise<number> {
@@ -469,6 +511,52 @@ export class ManychatService {
         }),
       }
     )
+  }
+
+  /**
+   * Create a new custom field in ManyChat
+   */
+  async createCustomField(
+    adminId: string,
+    name: string,
+    type: 'text' | 'number' | 'date' | 'datetime' | 'boolean',
+    description?: string
+  ): Promise<{ id: string; name: string; type: string; description?: string }> {
+    const apiToken = await this.getApiToken(adminId)
+    if (!apiToken) {
+      throw new Error('Manychat not configured')
+    }
+
+    const response = await this.makeRequest<{
+      data: {
+        id: number
+        name: string
+        type: string
+        description?: string
+      }
+    }>(
+      '/fb/page/createCustomField',
+      apiToken,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          type,
+          description: description || `Playgram tracker: ${name}`,
+        }),
+      }
+    )
+
+    if (!response.data) {
+      throw new Error('Failed to create custom field')
+    }
+
+    return {
+      id: response.data.id.toString(),
+      name: response.data.name,
+      type: response.data.type,
+      description: response.data.description,
+    }
   }
 
   /**
