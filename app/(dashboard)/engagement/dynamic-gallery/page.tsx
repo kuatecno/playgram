@@ -31,7 +31,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { dynamicGalleryApi } from '@/features/dynamic-gallery/api'
-import type { DynamicGallerySummaryDTO } from '@/features/dynamic-gallery/types'
+import type { DynamicGallerySummaryDTO, DynamicGalleryCardList } from '@/features/dynamic-gallery/types'
 
 const TRIGGER_LABELS = {
   manual: 'Manual sync',
@@ -63,7 +63,7 @@ export default function DynamicGalleryPage() {
     subtitle: '',
     imageUrl: '',
     imageClickUrl: '',
-    buttons: [{ title: '', url: '' }]
+    buttons: [{ type: 'link', title: '', url: '' }]
   })
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [dataSourceForm, setDataSourceForm] = useState({
@@ -648,7 +648,7 @@ export default function DynamicGalleryPage() {
                 onChange={(e) => setScheduleTime(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Daily sync will run at this time in your server's timezone
+                Daily sync will run at this time in your server&apos;s timezone
               </p>
             </div>
           </div>
@@ -812,7 +812,7 @@ export default function DynamicGalleryPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setNewCard({ ...newCard, buttons: [...newCard.buttons, { title: '', url: '' }] })
+                    setNewCard({ ...newCard, buttons: [...newCard.buttons, { type: 'link', title: '', url: '' }] })
                   }}
                   className="gap-2"
                 >
@@ -833,10 +833,10 @@ export default function DynamicGalleryPage() {
                   imageClickUrl: newCard.imageClickUrl || newCard.buttons[0]?.url || ''
                 }
 
-                await dynamicGalleryApi.storeCards([...cards, cardToCreate])
+                await dynamicGalleryApi.storeCards([...cards, cardToCreate] as DynamicGalleryCardList)
                 toast({ title: 'Card created', description: 'Gallery card added successfully' })
                 setIsCreateCardDialogOpen(false)
-                setNewCard({ title: '', subtitle: '', imageUrl: '', imageClickUrl: '', buttons: [{ title: '', url: '' }] })
+                setNewCard({ title: '', subtitle: '', imageUrl: '', imageClickUrl: '', buttons: [{ type: 'link', title: '', url: '' }] })
                 await loadSummary()
               } catch (error) {
                 toast({

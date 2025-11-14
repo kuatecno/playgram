@@ -121,11 +121,6 @@ type User = {
   manychatId: string | null
 }
 
-type Tag = {
-  id: string
-  name: string
-  manychatId: string | null
-}
 
 type QrToolSettings = {
   qrFormat: string
@@ -169,7 +164,6 @@ export default function QrToolConfigPage() {
 
   const [users, setUsers] = useState<User[]>([])
   const [selectedUserId, setSelectedUserId] = useState<string>('')
-  const [tags, setTags] = useState<Tag[]>([])
   const [customFields, setCustomFields] = useState<ManychatField[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
 
