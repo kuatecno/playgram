@@ -25,6 +25,7 @@ import {
   Plus,
   QrCode,
   Settings,
+  Trash2,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -51,6 +52,8 @@ export default function QrToolsListPage() {
   const [toolStats, setToolStats] = useState<Record<string, QrStats>>({})
   const [creating, setCreating] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [toolToDelete, setToolToDelete] = useState<Tool | null>(null)
 
   const [newToolName, setNewToolName] = useState('')
   const [newToolDescription, setNewToolDescription] = useState('')
@@ -151,6 +154,38 @@ export default function QrToolsListPage() {
     }
   }
 
+  async function handleDeleteTool() {
+    if (!toolToDelete) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/v1/tools/qr/${toolToDelete.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        toast({
+          title: 'Tool deleted',
+          description: 'The QR tool has been permanently deleted.',
+        })
+        setToolToDelete(null)
+        loadTools() // Reload the list
+      } else {
+        throw new Error(data.error || 'Failed to delete tool')
+      }
+    } catch (error) {
+      toast({
+        title: 'Failed to delete tool',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -223,6 +258,26 @@ export default function QrToolsListPage() {
         </Dialog>
       </div>
 
+      <Dialog open={!!toolToDelete} onOpenChange={(open) => !open && setToolToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete QR Tool</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{toolToDelete?.name}&quot;? This will permanently delete all QR codes and configuration associated with this tool. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setToolToDelete(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteTool} disabled={deleting}>
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Tool
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {tools.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -279,16 +334,26 @@ export default function QrToolsListPage() {
                     Created {formatDistanceToNow(new Date(tool.createdAt), { addSuffix: true })}
                   </div>
 
-                  <div className="flex gap-2">
-                    <Button asChild variant="default" className="flex-1">
-                      <Link href={`/engagement/qr-tools/${tool.id}`}>
-                        <Settings className="mr-2 h-4 w-4" /> Configure
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="flex-1">
-                      <Link href={`/engagement/qr-codes?toolId=${tool.id}`}>
-                        <QrCode className="mr-2 h-4 w-4" /> View Codes
-                      </Link>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button asChild variant="default" className="flex-1">
+                        <Link href={`/engagement/qr-tools/${tool.id}`}>
+                          <Settings className="mr-2 h-4 w-4" /> Configure
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" className="flex-1">
+                        <Link href={`/engagement/qr-codes?toolId=${tool.id}`}>
+                          <QrCode className="mr-2 h-4 w-4" /> View Codes
+                        </Link>
+                      </Button>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setToolToDelete(tool)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" /> Delete Tool
                     </Button>
                   </div>
                 </CardContent>

@@ -10,6 +10,14 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,6 +34,7 @@ import {
   Sparkles,
   Upload,
   AlertCircle,
+  Trash2,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -149,6 +158,9 @@ export default function QrToolConfigPage() {
   const [loadingManychat, setLoadingManychat] = useState(false)
 
   const [activityLoading, setActivityLoading] = useState(false)
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const appearancePreviewStyle = useMemo(
     () => ({
@@ -493,6 +505,38 @@ export default function QrToolConfigPage() {
     })
   }
 
+  async function handleDeleteTool() {
+    if (!tool) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/v1/tools/qr/${toolId}`, {
+        method: 'DELETE',
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        toast({
+          title: 'Tool deleted',
+          description: 'The QR tool has been permanently deleted.',
+        })
+        router.push('/engagement/qr-tools')
+      } else {
+        throw new Error(data.error || 'Failed to delete tool')
+      }
+    } catch (error) {
+      toast({
+        title: 'Failed to delete tool',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeleting(false)
+      setShowDeleteDialog(false)
+    }
+  }
+
   const connectedLabel = manychatConnected ? (
     <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
       <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Connected
@@ -528,26 +572,56 @@ export default function QrToolConfigPage() {
 
   return (
     <div className="space-y-6 py-6">
-      <div className="flex items-center gap-4">
-        <Button asChild variant="ghost" size="sm" className="mt-1">
-          <Link href="/engagement/qr-tools">
-            <ArrowLeft className="mr-2 h-4 w-4" /> All Tools
-          </Link>
-        </Button>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold leading-none tracking-tight">{tool.name}</h1>
-            {!tool.isActive && (
-              <Badge variant="outline" className="text-xs">
-                Inactive
-              </Badge>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button asChild variant="ghost" size="sm" className="mt-1">
+            <Link href="/engagement/qr-tools">
+              <ArrowLeft className="mr-2 h-4 w-4" /> All Tools
+            </Link>
+          </Button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold leading-none tracking-tight">{tool.name}</h1>
+              {!tool.isActive && (
+                <Badge variant="outline" className="text-xs">
+                  Inactive
+                </Badge>
+              )}
+            </div>
+            {tool.description && (
+              <p className="text-sm text-muted-foreground mt-1">{tool.description}</p>
             )}
           </div>
-          {tool.description && (
-            <p className="text-sm text-muted-foreground mt-1">{tool.description}</p>
-          )}
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={() => setShowDeleteDialog(true)}
+        >
+          <Trash2 className="mr-2 h-4 w-4" /> Delete
+        </Button>
       </div>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete QR Tool</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &quot;{tool.name}&quot;? This will permanently delete all QR codes and configuration associated with this tool. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteTool} disabled={deleting}>
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Tool
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <section className="grid gap-4 md:grid-cols-3">
         <Card>
