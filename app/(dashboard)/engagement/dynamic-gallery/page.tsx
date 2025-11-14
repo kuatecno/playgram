@@ -55,6 +55,15 @@ export default function DynamicGalleryPage() {
   const [isDataSourceDialogOpen, setIsDataSourceDialogOpen] = useState(false)
   const [isSecretsDialogOpen, setIsSecretsDialogOpen] = useState(false)
   const [isSavingDataSource, setIsSavingDataSource] = useState(false)
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false)
+  const [isCreateCardDialogOpen, setIsCreateCardDialogOpen] = useState(false)
+  const [scheduleTime, setScheduleTime] = useState('06:00')
+  const [newCard, setNewCard] = useState({
+    title: '',
+    subtitle: '',
+    imageUrl: '',
+    buttons: [{ title: '', url: '' }]
+  })
   const [dataSourceForm, setDataSourceForm] = useState({
     name: 'Instagram CMS',
     sourceType: 'webhook' as 'webhook' | 'api' | 'manual',
@@ -269,8 +278,13 @@ export default function DynamicGalleryPage() {
               </TabsList>
               <TabsContent value="cards" className="mt-4">
                 {cards.length === 0 ? (
-                  <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
-                    No cards yet. Upload cards via webhook or create them manually.
+                  <div className="rounded-lg border border-dashed p-12 text-center">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      No cards yet. Upload cards via webhook or create them manually.
+                    </p>
+                    <Button onClick={() => setIsCreateCardDialogOpen(true)} className="gap-2">
+                      <Plus className="h-4 w-4" /> Create card
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -344,9 +358,13 @@ export default function DynamicGalleryPage() {
                   onCheckedChange={handleToggleAutoSync}
                 />
               </div>
-              <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-                Next scheduled sync: <span className="font-medium text-foreground">Tomorrow · 6:00am</span>
-              </div>
+              <button
+                onClick={() => setIsScheduleDialogOpen(true)}
+                className="w-full rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground hover:bg-muted/50 transition-colors text-left"
+              >
+                Next scheduled sync: <span className="font-medium text-foreground">Tomorrow · {scheduleTime}</span>
+                <span className="ml-2 text-xs">(click to edit)</span>
+              </button>
             </CardContent>
           </Card>
 
@@ -605,6 +623,155 @@ export default function DynamicGalleryPage() {
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setIsSecretsDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Edit sync schedule</DialogTitle>
+            <DialogDescription>
+              Set the time for your daily automated gallery sync.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid gap-3">
+              <Label htmlFor="schedule-time">Sync time (24-hour format)</Label>
+              <Input
+                id="schedule-time"
+                type="time"
+                value={scheduleTime}
+                onChange={(e) => setScheduleTime(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Daily sync will run at this time in your server's timezone
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsScheduleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              toast({ title: 'Schedule updated', description: `Daily sync set for ${scheduleTime}` })
+              setIsScheduleDialogOpen(false)
+            }}>
+              Save schedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCreateCardDialogOpen} onOpenChange={setIsCreateCardDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create gallery card</DialogTitle>
+            <DialogDescription>
+              Add a new card to your dynamic gallery manually.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid gap-3">
+              <Label htmlFor="card-title">Title</Label>
+              <Input
+                id="card-title"
+                value={newCard.title}
+                onChange={(e) => setNewCard({ ...newCard, title: e.target.value })}
+                placeholder="Burger Special"
+              />
+            </div>
+            <div className="grid gap-3">
+              <Label htmlFor="card-subtitle">Subtitle</Label>
+              <Input
+                id="card-subtitle"
+                value={newCard.subtitle}
+                onChange={(e) => setNewCard({ ...newCard, subtitle: e.target.value })}
+                placeholder="Our signature burger with fries"
+              />
+            </div>
+            <div className="grid gap-3">
+              <Label htmlFor="card-image">Image URL</Label>
+              <Input
+                id="card-image"
+                value={newCard.imageUrl}
+                onChange={(e) => setNewCard({ ...newCard, imageUrl: e.target.value })}
+                placeholder="https://example.com/image.jpg"
+              />
+            </div>
+            <div className="grid gap-3">
+              <Label>Buttons (up to 3)</Label>
+              {newCard.buttons.map((button, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    value={button.title}
+                    onChange={(e) => {
+                      const updated = [...newCard.buttons]
+                      updated[index].title = e.target.value
+                      setNewCard({ ...newCard, buttons: updated })
+                    }}
+                    placeholder="Button label"
+                  />
+                  <Input
+                    value={button.url}
+                    onChange={(e) => {
+                      const updated = [...newCard.buttons]
+                      updated[index].url = e.target.value
+                      setNewCard({ ...newCard, buttons: updated })
+                    }}
+                    placeholder="https://..."
+                  />
+                  {newCard.buttons.length > 1 && (
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => {
+                        const updated = newCard.buttons.filter((_, i) => i !== index)
+                        setNewCard({ ...newCard, buttons: updated })
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {newCard.buttons.length < 3 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNewCard({ ...newCard, buttons: [...newCard.buttons, { title: '', url: '' }] })
+                  }}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Add button
+                </Button>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateCardDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={async () => {
+              try {
+                await dynamicGalleryApi.storeCards([...cards, newCard])
+                toast({ title: 'Card created', description: 'Gallery card added successfully' })
+                setIsCreateCardDialogOpen(false)
+                setNewCard({ title: '', subtitle: '', imageUrl: '', buttons: [{ title: '', url: '' }] })
+                await loadSummary()
+              } catch (error) {
+                toast({
+                  title: 'Failed to create card',
+                  description: error instanceof Error ? error.message : 'Unknown error',
+                  variant: 'destructive'
+                })
+              }
+            }}>
+              Create card
             </Button>
           </DialogFooter>
         </DialogContent>

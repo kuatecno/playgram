@@ -68,7 +68,7 @@ export class DynamicGalleryService {
     return { tool, config }
   }
 
-  async getSummary(adminId: string): Promise<DynamicGallerySummaryDTO> {
+  async getSummary(adminId: string, baseUrl?: string): Promise<DynamicGallerySummaryDTO> {
     const { tool, config } = await this.getOrCreateTool(adminId)
 
     const fullConfig = await db.dynamicGalleryConfig.findUnique({
@@ -144,7 +144,7 @@ export class DynamicGalleryService {
         errorMessage: log.errorMessage ?? undefined,
         createdAt: log.createdAt.toISOString(),
       })),
-      webhookUrl: `${process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3002'}/api/webhooks/dynamic-gallery/${tool.id}`,
+      webhookUrl: `${baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'}/api/v1/webhooks/dynamic-gallery/${tool.id}`,
     }
   }
 
