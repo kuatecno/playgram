@@ -35,6 +35,7 @@ import {
   AlertCircle,
   Trash2,
   Plus,
+  ExternalLink,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -120,10 +121,46 @@ const SYNC_TIMING_OPTIONS: { value: SyncTimingOption; label: string }[] = [
 
 const CREATE_FIELD_OPTION = '__create_field__'
 
+type AutoCreateFieldState = {
+  status: 'idle' | 'creating'
+  targetField: ExtendedQrFieldKey | null
+}
+
+type ManychatFieldType = 'text' | 'number' | 'date' | 'datetime' | 'boolean'
+
+const sanitizeFieldNameSegment = (segment: string) =>
+  segment
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+function buildDefaultManychatFieldName(toolId: string | undefined, qrField: ExtendedQrFieldKey) {
+  const safeToolId = sanitizeFieldNameSegment(toolId || 'tool')
+  const safeField = sanitizeFieldNameSegment(qrField)
+  const suffix = safeField ? safeField : 'field'
+  return `playgram_${safeToolId}_${suffix}`
+}
+
+function mapQrDataTypeToManychatType(dataType: string): ManychatFieldType {
+  switch (dataType) {
+    case 'number':
+      return 'number'
+    case 'date':
+      return 'date'
+    case 'datetime':
+      return 'datetime'
+    case 'boolean':
+      return 'boolean'
+    default:
+      return 'text'
+  }
+}
+
 type ManychatField = {
   id: string
   name: string
   type: string
+  description?: string
 }
 
 type FieldMappingRow = {
@@ -144,7 +181,8 @@ function normalizeFieldMappings(rawMappings: any[]): FieldMappingRow[] {
   rawMappings.forEach((mapping: any) => {
     const qrField = (mapping?.qrField as ExtendedQrFieldKey) || 'qr_code'
     const manychatFieldId = mapping?.manychatFieldId || ''
-    const syncTiming = (mapping?.syncTiming as SyncTimingOption) || (mapping?.enabled ? 'validation_all' : 'none')
+    const syncTiming =
+      (mapping?.syncTiming as SyncTimingOption) || (mapping?.enabled ? 'validation_all' : 'none') || 'none'
 
     deduped.set(qrField, {
       qrField,
@@ -278,9 +316,10 @@ export default function QrToolConfigPage() {
   // Create custom field dialog
   const [showCreateFieldDialog, setShowCreateFieldDialog] = useState(false)
   const [newFieldName, setNewFieldName] = useState('')
-  const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date' | 'datetime' | 'boolean'>('text')
+  const [newFieldType, setNewFieldType] = useState<ManychatFieldType>('text')
   const [newFieldDescription, setNewFieldDescription] = useState('')
   const [creatingField, setCreatingField] = useState(false)
+  const [autoCreateState, setAutoCreateState] = useState<AutoCreateFieldState>({ status: 'idle', targetField: null })
 
   // Create tag dialog
   const [showCreateTagDialog, setShowCreateTagDialog] = useState(false)
@@ -759,33 +798,95 @@ export default function QrToolConfigPage() {
     }
   }
 
+  function ensureFieldRow(qrField: ExtendedQrFieldKey): FieldMappingRow {
+    const existing = fieldMappings.find((item) => item.qrField === qrField)
+    if (existing) {
+      return existing
+    }
+
+    const row: FieldMappingRow = {
+      qrField,
+      manychatFieldId: '',
+      manychatFieldName: '',
+      enabled: false,
+      syncTiming: 'none',
+    }
+
+    setFieldMappings((prev) => [...prev, row])
+    return row
+  }
+
   function updateFieldMapping(qrField: ExtendedQrFieldKey, partial: Partial<FieldMappingRow>) {
     setFieldMappings((prev) => {
       const next = [...prev]
       const index = next.findIndex((item) => item.qrField === qrField)
-
       if (index === -1) {
-        // New mapping - merge partial and compute enabled
-        const newMapping = {
+        next.push({
           qrField,
           manychatFieldId: '',
           manychatFieldName: '',
-          syncTiming: 'none' as SyncTimingOption,
           enabled: false,
+          syncTiming: 'none',
           ...partial,
-        }
-        // Recompute enabled based on final values
-        newMapping.enabled = Boolean(newMapping.manychatFieldId && newMapping.syncTiming !== 'none')
-        next.push(newMapping)
+        })
       } else {
-        // Update existing mapping
-        const updated = { ...next[index], ...partial }
-        // Recompute enabled based on final values
-        updated.enabled = Boolean(updated.manychatFieldId && updated.syncTiming !== 'none')
-        next[index] = updated
+        next[index] = { ...next[index], ...partial }
       }
       return next
     })
+  }
+
+  async function handleInlineCreateField(targetField: ExtendedQrFieldKey) {
+    const row = ensureFieldRow(targetField)
+    const fieldMeta = FIELD_MAPPING_ROWS.find((item) => item.key === targetField)
+    const defaultName = buildDefaultManychatFieldName(toolId, targetField)
+    const detectedType = mapQrDataTypeToManychatType(fieldMeta?.dataType || 'text')
+
+    setAutoCreateState({ status: 'creating', targetField })
+    try {
+      const res = await fetch('/api/v1/manychat/fields', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: defaultName,
+          type: detectedType,
+          description: `Autogenerated for ${tool?.name || 'Playgram'} (${targetField})`,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to create ManyChat field')
+      }
+
+      const createdField: ManychatField = data.data
+      setManychatFields((prev) => {
+        const exists = prev.some((field) => field.id === createdField.id)
+        if (exists) return prev
+        return [...prev, createdField]
+      })
+
+      updateFieldMapping(targetField, {
+        manychatFieldId: createdField.id,
+        manychatFieldName: createdField.name,
+        enabled: true,
+        syncTiming: 'validation_all',
+      })
+
+      toast({
+        title: 'Field created',
+        description: `Ready to sync into "${createdField.name}"`,
+      })
+    } catch (error) {
+      console.error('Inline field creation failed:', error)
+      toast({
+        title: 'Failed to create field',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setAutoCreateState({ status: 'idle', targetField: null })
+    }
   }
 
   function addOutcomeFieldMapping() {
@@ -1035,7 +1136,7 @@ export default function QrToolConfigPage() {
       <div className="mx-auto flex max-w-4xl flex-col items-center justify-center gap-4 py-24 text-center">
         <AlertCircle className="h-12 w-12 text-muted-foreground" />
         <h1 className="text-2xl font-semibold">Tool not found</h1>
-        <p className="text-muted-foreground">This QR tool doesn&apos;t exist or you don&apos;t have access to it.</p>
+        <p className="text-muted-foreground">This QR tool doesn't exist or you don't have access to it.</p>
         <Button asChild>
           <Link href="/engagement/qr-tools">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Tools
@@ -1606,44 +1707,37 @@ export default function QrToolConfigPage() {
                       <tbody>
                         {FIELD_MAPPING_ROWS.map((field) => {
                           const mapping = fieldMappings.find((item) => item.qrField === field.key)
-                          const isCreatingField = pendingFieldRow === field.key
-
+                          const currentValue = mapping?.manychatFieldId || CREATE_FIELD_OPTION
+                          const isCreating =
+                            autoCreateState.status === 'creating' && autoCreateState.targetField === field.key
                           return (
                             <tr key={field.key} className="border-t">
                               <td className="px-4 py-3 align-top">
-                                <div className="font-medium">{field.label}</div>
+                                <div className="font-medium flex items-center gap-2">
+                                  {field.label}
+                                  {field.key === CORE_VALIDATION_FIELD.key && (
+                                    <Badge variant="secondary" className="text-[10px] uppercase">
+                                      core
+                                    </Badge>
+                                  )}
+                                </div>
                                 <div className="text-xs text-muted-foreground">{field.description}</div>
                               </td>
                               <td className="px-4 py-3 align-top">
-                                {isCreatingField ? (
-                                  <div className="space-y-2">
-                                    <Input
-                                      placeholder="Field name..."
-                                      value={newFieldName}
-                                      onChange={(e) => setNewFieldName(e.target.value)}
-                                      autoFocus
-                                    />
-                                    <div className="flex gap-2">
-                                      <Button
-                                        size="sm"
-                                        onClick={async () => {
-                                          await handleCreateCustomField()
-                                          updateFieldMapping(field.key, {
-                                            manychatFieldId: manychatFields.find((f) => f.name === newFieldName)?.id || '',
-                                            manychatFieldName: newFieldName,
-                                          })
-                                          setPendingFieldRow(null)
-                                        }}
-                                        disabled={!newFieldName.trim()}
-                                      >
-                                        Create
-                                      </Button>
-                                      <Button size="sm" variant="outline" onClick={() => setPendingFieldRow(null)}>
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ) : (
+                                <div className="space-y-2">
+                                  <div className="relative">
+                                    <select
+                                      className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm pr-8"
+                                      value={currentValue}
+                                      disabled={isCreating}
+                                      onChange={(event) => {
+                                        const value = event.target.value
+                                        if (value === CREATE_FIELD_OPTION) {
+                                          handleInlineCreateField(field.key)
+                                          return
+                                        }
+
+                                        const selectedField = manychatFields.find((f) => f.id === value)
                                   <select
                                     className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
                                     value={mapping?.manychatFieldId || ''}
