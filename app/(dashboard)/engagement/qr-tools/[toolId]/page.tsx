@@ -1513,14 +1513,14 @@ export default function QrToolConfigPage() {
                     <div className="mt-1.5 flex gap-2">
                       <Input
                         readOnly
-                        value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/qr`}
+                        value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/qr/manychat-generate`}
                         className="font-mono text-xs"
                       />
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          const endpoint = `${window.location.origin}/api/v1/qr`
+                          const endpoint = `${window.location.origin}/api/v1/qr/manychat-generate`
                           navigator.clipboard.writeText(endpoint)
                           toast({ title: 'Copied!', description: 'Generation endpoint copied' })
                         }}
@@ -1536,7 +1536,7 @@ export default function QrToolConfigPage() {
 {`{
   "toolId": "${toolId}",
   "qrType": "promotion",
-  "userId": "{{subscriber_id}}",
+  "userId": "{{user_id}}",
   "metadata": {
     "label": "{{first_name}}'s QR",
     "campaign": "spring_2024"
@@ -1546,29 +1546,43 @@ export default function QrToolConfigPage() {
                   </div>
 
                   <div>
-                    <Label className="text-xs font-medium text-muted-foreground">Response Example</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">Response Example (Instagram Format)</Label>
                     <pre className="mt-1.5 p-3 bg-muted rounded-md text-xs overflow-x-auto border">
 {`{
-  "success": true,
-  "data": {
-    "id": "qr_abc123",
-    "qrCode": "PROMO-JOHN-A3X9ZP",
-    "imageUrl": "data:image/png;base64,iVBORw0KGgo...",
-    "expiresAt": "2024-12-31T23:59:59Z"
+  "version": "v2",
+  "content": {
+    "type": "instagram",
+    "messages": [
+      {
+        "type": "image",
+        "url": "data:image/png;base64,..."
+      },
+      {
+        "type": "text",
+        "text": "✅ Your QR code: PROMO-JOHN-A3X9ZP"
+      }
+    ],
+    "actions": [],
+    "quick_replies": []
   }
 }`}
                     </pre>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
-                      <p className="text-xs text-amber-900">
-                        <strong>Tip:</strong> Save the <code className="px-1 py-0.5 bg-amber-100 rounded">imageUrl</code> to a custom field, then use the &quot;Send Image&quot; action to deliver the QR code to your subscriber.
+                    <div className="rounded-lg border border-green-200 bg-green-50/50 p-3">
+                      <p className="text-xs text-green-900">
+                        <strong>✓ Instagram Compatible:</strong> This endpoint returns the QR code image and text directly in ManyChat&apos;s Instagram Dynamic Block format. The image will automatically appear in the conversation!
                       </p>
                     </div>
                     <div className="rounded-lg border border-purple-200 bg-purple-50/50 p-3">
                       <p className="text-xs text-purple-900">
-                        <strong>ManyChat Setup:</strong> In the External Request action, set Request Type to <code className="px-1 py-0.5 bg-purple-100 rounded">POST</code>, paste the endpoint above, and add the request body. ManyChat will automatically replace placeholders like <code className="px-1 py-0.5 bg-purple-100 rounded">{`{{subscriber_id}}`}</code> with actual values.
+                        <strong>ManyChat Setup:</strong> In the External Request action, set Request Type to <code className="px-1 py-0.5 bg-purple-100 rounded">POST</code>, paste the endpoint above, and add the request body. Use <code className="px-1 py-0.5 bg-purple-100 rounded">{`{{user_id}}`}</code> for the userId field.
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                      <p className="text-xs text-blue-900">
+                        <strong>Platform Note:</strong> This endpoint is configured for Instagram. For Facebook, WhatsApp, or Telegram, the response format may need adjustment. See <code className="px-1 py-0.5 bg-blue-100 rounded">docs/MANYCHAT_DYNAMIC_BLOCK_REFERENCE.md</code> for details.
                       </p>
                     </div>
                   </div>
@@ -1615,7 +1629,7 @@ export default function QrToolConfigPage() {
                     <pre className="mt-1.5 p-3 bg-muted rounded-md text-xs overflow-x-auto border">
 {`{
   "qr_code": "{{user_input}}",
-  "subscriber_id": "{{subscriber_id}}"
+  "subscriber_id": "{{user_id}}"
 }`}
                     </pre>
                   </div>
@@ -1662,7 +1676,7 @@ export default function QrToolConfigPage() {
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
                     <span className="text-purple-900">
-                      <strong>Step 1:</strong> Generate QR → Save <code className="px-1 py-0.5 bg-purple-100 rounded">imageUrl</code> to custom field → Send image to user
+                      <strong>Step 1:</strong> Generate QR → ManyChat automatically displays the image to user
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
