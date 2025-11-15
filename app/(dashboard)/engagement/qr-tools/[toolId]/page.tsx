@@ -1487,69 +1487,192 @@ export default function QrToolConfigPage() {
         <TabsContent value="integrations" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>ManyChat External Request Setup</CardTitle>
+              <CardTitle>ManyChat Integration Guide</CardTitle>
               <CardDescription>
-                Configure a ManyChat External Request to validate QR codes and trigger conditional actions.
+                Complete guide for generating QR codes and validating scans using ManyChat External Requests
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+
+              {/* QR Generation Section */}
               <div className="space-y-3">
-                <div>
-                  <Label className="text-sm font-medium">Webhook URL</Label>
-                  <div className="mt-1.5 flex gap-2">
-                    <Input
-                      readOnly
-                      value={webhookUrl}
-                      className="font-mono text-xs"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText(webhookUrl)
-                        toast({ title: 'Copied!', description: 'Webhook URL copied to clipboard' })
-                      }}
-                    >
-                      Copy
-                    </Button>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                    1
                   </div>
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    Use this URL in your ManyChat External Request action
-                  </p>
+                  <h4 className="text-sm font-semibold">Generate QR Code</h4>
                 </div>
 
-                <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
-                  <h4 className="text-sm font-semibold">Setup Instructions:</h4>
-                  <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                    <li>In ManyChat, create a new Flow or edit an existing one</li>
-                    <li>Add an &quot;External Request&quot; action</li>
-                    <li>Set Request Type to <code className="px-1 py-0.5 bg-background rounded">POST</code></li>
-                    <li>Paste the webhook URL above</li>
-                    <li>In the request body, send:
-                      <pre className="mt-2 p-2 bg-background rounded text-xs overflow-x-auto">
+                <div className="ml-8 space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Use this API endpoint to generate personalized QR codes for your subscribers.
+                  </p>
+
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">POST Endpoint</Label>
+                    <div className="mt-1.5 flex gap-2">
+                      <Input
+                        readOnly
+                        value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/qr`}
+                        className="font-mono text-xs"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const endpoint = `${window.location.origin}/api/v1/qr`
+                          navigator.clipboard.writeText(endpoint)
+                          toast({ title: 'Copied!', description: 'Generation endpoint copied' })
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Request Body</Label>
+                    <pre className="mt-1.5 p-3 bg-muted rounded-md text-xs overflow-x-auto border">
+{`{
+  "toolId": "${toolId}",
+  "qrType": "promotion",
+  "userId": "{{subscriber_id}}",
+  "metadata": {
+    "label": "{{first_name}}'s QR",
+    "campaign": "spring_2024"
+  }
+}`}
+                    </pre>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Response Example</Label>
+                    <pre className="mt-1.5 p-3 bg-muted rounded-md text-xs overflow-x-auto border">
+{`{
+  "success": true,
+  "data": {
+    "id": "qr_abc123",
+    "qrCode": "PROMO-JOHN-A3X9ZP",
+    "imageUrl": "data:image/png;base64,iVBORw0KGgo...",
+    "expiresAt": "2024-12-31T23:59:59Z"
+  }
+}`}
+                    </pre>
+                  </div>
+
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                    <p className="text-xs text-amber-900">
+                      <strong>Tip:</strong> Save the <code className="px-1 py-0.5 bg-amber-100 rounded">imageUrl</code> to a custom field, then use the &quot;Send Image&quot; action to deliver the QR code to your subscriber.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* QR Validation Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                    2
+                  </div>
+                  <h4 className="text-sm font-semibold">Validate QR Code</h4>
+                </div>
+
+                <div className="ml-8 space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    When a user scans their QR or submits it via text, validate it using this webhook endpoint.
+                  </p>
+
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">POST Webhook URL</Label>
+                    <div className="mt-1.5 flex gap-2">
+                      <Input
+                        readOnly
+                        value={webhookUrl}
+                        className="font-mono text-xs"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText(webhookUrl)
+                          toast({ title: 'Copied!', description: 'Validation webhook copied' })
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Request Body (from ManyChat)</Label>
+                    <pre className="mt-1.5 p-3 bg-muted rounded-md text-xs overflow-x-auto border">
 {`{
   "qr_code": "{{user_input}}",
   "subscriber_id": "{{subscriber_id}}"
 }`}
-                      </pre>
-                    </li>
-                    <li>
-                      Configure conditional responses based on the outcome:
-                      <ul className="mt-1 ml-6 space-y-1 list-disc">
-                        <li><code className="text-xs">outcome</code> = &quot;validated_success&quot; → Success flow</li>
-                        <li><code className="text-xs">outcome</code> = &quot;validated_failed&quot; → Failure flow</li>
-                        <li><code className="text-xs">failure_reason</code> = &quot;expired&quot;, &quot;wrong_person&quot;, etc.</li>
-                      </ul>
-                    </li>
-                  </ol>
-                </div>
+                    </pre>
+                  </div>
 
-                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-                  <p className="text-xs text-blue-900">
-                    <strong>Tip:</strong> Configure conditional field mappings and tags below to automatically update custom fields and apply tags based on validation outcomes (QR sent, validated successfully, or validation failed).
-                  </p>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Response on Success</Label>
+                    <pre className="mt-1.5 p-3 bg-muted rounded-md text-xs overflow-x-auto border">
+{`{
+  "success": true,
+  "outcome": "validated_success",
+  "message": "QR code validated successfully",
+  "data": { ... }
+}`}
+                    </pre>
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Response on Failure</Label>
+                    <pre className="mt-1.5 p-3 bg-muted rounded-md text-xs overflow-x-auto border">
+{`{
+  "success": false,
+  "outcome": "validated_failed",
+  "failure_reason": "expired",
+  "message": "QR code has expired"
+}`}
+                    </pre>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Possible <code className="px-1 py-0.5 bg-muted rounded">failure_reason</code> values: <code>expired</code>, <code>wrong_person</code>, <code>already_used</code>, <code>other</code>
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+                    <p className="text-xs text-blue-900">
+                      <strong>ManyChat Setup:</strong> In your External Request action, create conditions based on <code className="px-1 py-0.5 bg-blue-100 rounded">outcome</code> and <code className="px-1 py-0.5 bg-blue-100 rounded">failure_reason</code> to branch your flow (e.g., success → grant access, expired → offer renewal).
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              {/* Quick Reference */}
+              <div className="rounded-lg border bg-gradient-to-br from-purple-50 to-blue-50 p-4 space-y-2">
+                <h4 className="text-sm font-semibold text-purple-900">Quick Reference</h4>
+                <div className="grid gap-2 text-xs">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <span className="text-purple-900">
+                      <strong>Step 1:</strong> Generate QR → Save <code className="px-1 py-0.5 bg-purple-100 rounded">imageUrl</code> to custom field → Send image to user
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <span className="text-purple-900">
+                      <strong>Step 2:</strong> User submits QR code → Validate via webhook → Check <code className="px-1 py-0.5 bg-purple-100 rounded">outcome</code> → Branch flow
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <span className="text-purple-900">
+                      <strong>Step 3:</strong> Configure field mappings below to auto-sync validation status and QR data to ManyChat fields
+                    </span>
+                  </div>
+                </div>
+              </div>
+
             </CardContent>
           </Card>
 
