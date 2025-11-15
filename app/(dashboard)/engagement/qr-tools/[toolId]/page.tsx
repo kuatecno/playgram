@@ -1560,10 +1560,17 @@ export default function QrToolConfigPage() {
                     </pre>
                   </div>
 
-                  <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
-                    <p className="text-xs text-amber-900">
-                      <strong>Tip:</strong> Save the <code className="px-1 py-0.5 bg-amber-100 rounded">imageUrl</code> to a custom field, then use the &quot;Send Image&quot; action to deliver the QR code to your subscriber.
-                    </p>
+                  <div className="space-y-2">
+                    <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                      <p className="text-xs text-amber-900">
+                        <strong>Tip:</strong> Save the <code className="px-1 py-0.5 bg-amber-100 rounded">imageUrl</code> to a custom field, then use the &quot;Send Image&quot; action to deliver the QR code to your subscriber.
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-purple-200 bg-purple-50/50 p-3">
+                      <p className="text-xs text-purple-900">
+                        <strong>ManyChat Setup:</strong> In the External Request action, set Request Type to <code className="px-1 py-0.5 bg-purple-100 rounded">POST</code>, paste the endpoint above, and add the request body. ManyChat will automatically replace placeholders like <code className="px-1 py-0.5 bg-purple-100 rounded">{`{{subscriber_id}}`}</code> with actual values.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -3,11 +3,13 @@ import { z } from 'zod'
 import { requireAuth } from '@/lib/auth/session'
 import { apiResponse } from '@/lib/utils/api-response'
 import { qrCodeService } from '@/features/qr-codes/services/QRCodeService'
+import { db } from '@/lib/db'
 
 const generateQRSchema = z.object({
   toolId: z.string().min(1, 'Tool ID is required'),
-  type: z.enum(['promotion', 'validation', 'discount']),
-  label: z.string().min(1, 'Label is required'),
+  type: z.enum(['promotion', 'validation', 'discount']).optional(),
+  qrType: z.enum(['promotion', 'validation', 'discount']).optional(),
+  label: z.string().optional(),
   userId: z.string().optional(),
   data: z.object({
     message: z.string().optional(),
@@ -16,7 +18,10 @@ const generateQRSchema = z.object({
     validUntil: z.string().datetime().optional(),
     maxScans: z.number().int().positive().optional(),
     metadata: z.record(z.unknown()).optional(),
-  }),
+  }).optional(),
+  metadata: z.record(z.unknown()).optional(),
+}).refine((data) => data.type || data.qrType, {
+  message: 'Either type or qrType is required',
 })
 
 /**
@@ -53,29 +58,66 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/v1/qr
  * Generate a new QR code
+ *
+ * Supports both authenticated (admin session) and unauthenticated (ManyChat External Request) access.
+ * For unauthenticated access, requires valid toolId and userId.
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth()
     const body = await request.json()
 
     // Validate input
     const validated = generateQRSchema.parse(body)
 
+    // Normalize type field (accept both 'type' and 'qrType')
+    const qrType = validated.type || validated.qrType || 'promotion'
+
+    // Try to get authenticated user
+    let adminId: string | undefined
+    try {
+      const user = await requireAuth()
+      adminId = user.id
+    } catch (authError) {
+      // If authentication fails, verify the tool exists and get its owner
+      const tool = await db.tool.findUnique({
+        where: { id: validated.toolId },
+        select: { adminId: true, isActive: true },
+      })
+
+      if (!tool) {
+        return apiResponse.validationError('Invalid tool ID')
+      }
+
+      if (!tool.isActive) {
+        return apiResponse.validationError('Tool is not active')
+      }
+
+      // For unauthenticated requests, require userId
+      if (!validated.userId) {
+        return apiResponse.validationError('userId is required for external requests')
+      }
+
+      adminId = tool.adminId
+    }
+
+    // Generate label if not provided
+    const label = validated.label || `${qrType}-${Date.now()}`
+
     // Convert validUntil string to Date if provided
     const data = {
-      ...validated.data,
-      validUntil: validated.data.validUntil
+      ...(validated.data || {}),
+      ...(validated.metadata ? { metadata: validated.metadata } : {}),
+      validUntil: validated.data?.validUntil
         ? new Date(validated.data.validUntil)
         : undefined,
     }
 
     // Generate QR code
     const result = await qrCodeService.generateQRCode({
-      adminId: user.id,
+      adminId,
       toolId: validated.toolId,
-      type: validated.type,
-      label: validated.label,
+      type: qrType,
+      label,
       userId: validated.userId,
       data,
     })
