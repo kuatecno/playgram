@@ -52,59 +52,6 @@ interface QRCode {
   updatedAt: string
 }
 
-const normalizeQrCodeResponse = (qr: any): QRCode | null => {
-  try {
-    // Guard against completely invalid QR objects
-    if (!qr || typeof qr !== 'object') {
-      console.warn('Invalid QR object received:', qr)
-      return null
-    }
-
-    // Guard against missing required fields
-    if (!qr.id || !qr.code) {
-      console.warn('QR missing required fields:', qr)
-      return null
-    }
-
-    const metadata = ((qr?.metadata as Record<string, unknown>) || {}) as Record<string, any>
-    const validUntilSource = metadata.validUntil || qr?.expiresAt || null
-    const validUntil = typeof validUntilSource === 'string'
-      ? validUntilSource
-      : validUntilSource instanceof Date
-        ? validUntilSource.toISOString()
-        : null
-    const maxScans = typeof metadata.maxScans === 'number' ? metadata.maxScans : null
-
-    return {
-      id: qr.id,
-      type: qr.qrType || qr.type || 'promotion',
-      code: qr.code,
-      label: metadata.label || qr.label || 'QR Code',
-      data: {
-        message: metadata.message,
-        discountAmount: metadata.discountAmount,
-        discountType: metadata.discountType,
-        validUntil: validUntil || undefined,
-        maxScans: maxScans || undefined,
-        metadata,
-      },
-      isActive:
-        typeof qr.isActive === 'boolean'
-          ? qr.isActive
-          : validUntil
-            ? new Date(validUntil).getTime() > Date.now()
-            : true,
-      scanCount: typeof qr.scanCount === 'number' ? qr.scanCount : 0,
-      maxScans,
-      createdAt: qr.createdAt || new Date().toISOString(),
-      updatedAt: qr.updatedAt || new Date().toISOString(),
-    }
-  } catch (error) {
-    console.error('Error normalizing QR code:', error, qr)
-    return null
-  }
-}
-
 interface QRCodeStats {
   total: number
   active: number
@@ -253,10 +200,7 @@ export default function QRCodesPage() {
       const data = await response.json()
 
       if (data.success) {
-        const normalizedQRCodes = (data.data.qrCodes || [])
-          .map(normalizeQrCodeResponse)
-          .filter((qr: QRCode | null): qr is QRCode => qr !== null)
-        setQRCodes(normalizedQRCodes)
+        setQRCodes(data.data.qrCodes)
       }
     } catch (error) {
       toast({
@@ -603,10 +547,8 @@ export default function QRCodesPage() {
     }
   }
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '—'
-    const parsed = new Date(dateString)
-    return isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString()
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString()
   }
 
   return (

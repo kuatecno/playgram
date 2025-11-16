@@ -253,9 +253,7 @@ export default function QRCodesPage() {
       const data = await response.json()
 
       if (data.success) {
-        const normalizedQRCodes = (data.data.qrCodes || [])
-          .map(normalizeQrCodeResponse)
-          .filter((qr: QRCode | null): qr is QRCode => qr !== null)
+        const normalizedQRCodes = (data.data.qrCodes || []).map(normalizeQrCodeResponse)
         setQRCodes(normalizedQRCodes)
       }
     } catch (error) {

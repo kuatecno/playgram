@@ -255,7 +255,7 @@ export default function QRCodesPage() {
       if (data.success) {
         const normalizedQRCodes = (data.data.qrCodes || [])
           .map(normalizeQrCodeResponse)
-          .filter((qr: QRCode | null): qr is QRCode => qr !== null)
+          .filter((qr): qr is QRCode => qr !== null)
         setQRCodes(normalizedQRCodes)
       }
     } catch (error) {
