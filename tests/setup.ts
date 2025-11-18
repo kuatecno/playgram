@@ -6,9 +6,8 @@
 import { vi } from 'vitest'
 
 // Mock environment variables
-process.env.NODE_ENV = 'test'
-process.env.NEXTAUTH_SECRET = 'test-secret'
-process.env.NEXTAUTH_URL = 'http://localhost:3002'
+// Note: These are only for tests, not used in build
+// The build process uses actual .env files
 
 // Mock Next.js modules
 vi.mock('next/navigation', () => ({

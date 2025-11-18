@@ -57,17 +57,8 @@ export const initSentry = () => {
       return event
     },
 
-    // Integrations
-    integrations: [
-      new Sentry.BrowserTracing({
-        // Trace all API routes
-        tracePropagationTargets: ['localhost', /^\/api/],
-      }),
-      new Sentry.Replay({
-        maskAllText: true,
-        blockAllMedia: true,
-      }),
-    ],
+    // Integrations configured in sentry.client.config.ts
+    // integrations are set per-environment
   })
 }
 
@@ -115,9 +106,11 @@ export const addBreadcrumb = (message: string, data?: Record<string, any>) => {
 
 /**
  * Measure performance
+ * Note: startTransaction is deprecated in newer Sentry versions
+ * Use Sentry.startSpan() instead if needed
  */
-export const startTransaction = (name: string, op: string) => {
-  return Sentry.startTransaction({ name, op })
-}
+// export const startTransaction = (name: string, op: string) => {
+//   return Sentry.startSpan({ name, op }, () => {})
+// }
 
 export default Sentry

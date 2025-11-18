@@ -4,7 +4,6 @@
  */
 
 import Queue, { Job, JobOptions } from 'bull'
-import Redis from 'ioredis'
 
 // Redis connection configuration
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'

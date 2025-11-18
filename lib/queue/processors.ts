@@ -17,7 +17,7 @@ import { logger } from '../logger'
  * Process webhook delivery jobs
  */
 export async function processWebhookJob(job: Job<WebhookJobData>): Promise<void> {
-  const { webhookId, event, payload, url, headers, retryCount = 0 } = job.data
+  const { webhookId, event, payload, url, headers } = job.data
 
   logger.info('Processing webhook job', {
     webhookId,
@@ -79,7 +79,7 @@ export async function processWebhookJob(job: Job<WebhookJobData>): Promise<void>
  * Process ManyChat sync jobs
  */
 export async function processManyChatSyncJob(job: Job<ManyChatSyncJobData>): Promise<void> {
-  const { type, action, toolId, data } = job.data
+  const { type, action, toolId, data: _data } = job.data
 
   logger.info('Processing ManyChat sync job', {
     type,
@@ -130,7 +130,7 @@ export async function processManyChatSyncJob(job: Job<ManyChatSyncJobData>): Pro
  * Process email jobs
  */
 export async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
-  const { to, subject, template, data } = job.data
+  const { to, subject, template, data: _data } = job.data
 
   logger.info('Processing email job', {
     to,
@@ -165,7 +165,7 @@ export async function processEmailJob(job: Job<EmailJobData>): Promise<void> {
  * Process QR analytics jobs
  */
 export async function processQRAnalyticsJob(job: Job<QRAnalyticsJobData>): Promise<void> {
-  const { qrCodeId, event, data } = job.data
+  const { qrCodeId, event, data: _data } = job.data
 
   logger.info('Processing QR analytics job', {
     qrCodeId,
@@ -198,7 +198,7 @@ export async function processQRAnalyticsJob(job: Job<QRAnalyticsJobData>): Promi
  * Process data export jobs
  */
 export async function processDataExportJob(job: Job<DataExportJobData>): Promise<void> {
-  const { userId, exportType, dataType, filters } = job.data
+  const { userId, exportType, dataType, filters: _filters } = job.data
 
   logger.info('Processing data export job', {
     userId,
