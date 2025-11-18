@@ -80,6 +80,8 @@ export interface QRFieldMappingConfig {
   mappings: QRFieldMapping[]
   autoSyncOnScan: boolean // Sync to Manychat when QR is scanned
   autoSyncOnValidation: boolean // Sync to Manychat when QR is validated
+  outcomeFieldMappings?: import('./QRToolConfigService').QROutcomeFieldMapping[]
+  outcomeTagConfigs?: import('./QRToolConfigService').QROutcomeTagConfig[]
 }
 
 /**
@@ -102,6 +104,8 @@ export async function getQRFieldMappings(toolId: string): Promise<QRFieldMapping
     mappings: normalizedMappings,
     autoSyncOnScan: mappingConfig.autoSyncOnScan,
     autoSyncOnValidation: mappingConfig.autoSyncOnValidation,
+    outcomeFieldMappings: mappingConfig.outcomeFieldMappings || [],
+    outcomeTagConfigs: mappingConfig.outcomeTagConfigs || [],
   }
 }
 
@@ -119,6 +123,8 @@ export async function saveQRFieldMappings(
       })),
       autoSyncOnScan: mappingConfig.autoSyncOnScan,
       autoSyncOnValidation: mappingConfig.autoSyncOnValidation,
+      outcomeFieldMappings: mappingConfig.outcomeFieldMappings || [],
+      outcomeTagConfigs: mappingConfig.outcomeTagConfigs || [],
     },
   })
 }

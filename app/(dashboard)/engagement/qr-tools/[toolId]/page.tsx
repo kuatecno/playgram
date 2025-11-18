@@ -270,7 +270,6 @@ export default function QrToolConfigPage() {
   const [_manychatTags, setManychatTags] = useState<ManychatTag[]>([]) // Reserved for future tag UI
   const [outcomeFieldMappings, setOutcomeFieldMappings] = useState<OutcomeFieldMapping[]>([])
   const [outcomeTagConfigs, setOutcomeTagConfigs] = useState<OutcomeTagConfig[]>([])
-  const [outcomeConfigSaving, setOutcomeConfigSaving] = useState(false)
 
   const [pendingFieldRow, setPendingFieldRow] = useState<ExtendedQrFieldKey | null>(null)
 
@@ -705,42 +704,6 @@ export default function QrToolConfigPage() {
           mappings: fieldMappings,
           autoSyncOnScan: fieldMappings.some((mapping) => mapping.enabled),
           autoSyncOnValidation: false,
-        }),
-      })
-
-      const data = await res.json()
-      if (res.ok && data.success) {
-        toast({ title: 'Field mappings saved', description: 'ManyChat sync settings updated.' })
-      } else {
-        throw new Error(data.error || 'Failed to save field mappings')
-      }
-    } catch (error) {
-      toast({
-        title: 'Failed to save field mappings',
-        description: error instanceof Error ? error.message : 'Please try again.',
-        variant: 'destructive',
-      })
-    } finally {
-      setFieldMappingsSaving(false)
-    }
-  }
-
-  async function handleSaveOutcomeConfig() {
-    setOutcomeConfigSaving(true)
-    try {
-      // Get existing config first
-      const existingRes = await fetch(`/api/v1/qr/field-mapping?toolId=${toolId}`)
-      const existingData = await existingRes.json()
-      const existingConfig = existingData.success ? existingData.data?.config : {}
-
-      const res = await fetch('/api/v1/qr/field-mapping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          toolId,
-          mappings: existingConfig?.mappings || [],
-          autoSyncOnScan: existingConfig?.autoSyncOnScan || false,
-          autoSyncOnValidation: existingConfig?.autoSyncOnValidation || false,
           outcomeFieldMappings: outcomeFieldMappings.map(({ id, ...rest }) => rest),
           outcomeTagConfigs: outcomeTagConfigs.map(({ id, ...rest }) => rest),
         }),
@@ -748,18 +711,18 @@ export default function QrToolConfigPage() {
 
       const data = await res.json()
       if (res.ok && data.success) {
-        toast({ title: 'Outcome configuration saved', description: 'Conditional mappings and tags updated.' })
+        toast({ title: 'Configuration saved', description: 'Field mappings, outcome rules, and tag automations updated.' })
       } else {
-        throw new Error(data.error || 'Failed to save outcome configuration')
+        throw new Error(data.error || 'Failed to save configuration')
       }
     } catch (error) {
       toast({
-        title: 'Failed to save outcome configuration',
+        title: 'Failed to save configuration',
         description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive',
       })
     } finally {
-      setOutcomeConfigSaving(false)
+      setFieldMappingsSaving(false)
     }
   }
 
@@ -2022,8 +1985,8 @@ export default function QrToolConfigPage() {
                     </p>
                   </div>
 
-                  <Button onClick={handleSaveOutcomeConfig} disabled={outcomeConfigSaving}>
-                    {outcomeConfigSaving ? (
+                  <Button onClick={handleSaveFieldMappings} disabled={fieldMappingsSaving}>
+                    {fieldMappingsSaving ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       <Save className="mr-2 h-4 w-4" />

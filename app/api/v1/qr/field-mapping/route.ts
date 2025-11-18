@@ -63,7 +63,14 @@ export async function POST(req: NextRequest) {
     const user = await requireAuth()
 
     const body = await req.json()
-    const { toolId, mappings, autoSyncOnScan, autoSyncOnValidation } = body
+    const { 
+      toolId, 
+      mappings, 
+      autoSyncOnScan, 
+      autoSyncOnValidation,
+      outcomeFieldMappings,
+      outcomeTagConfigs 
+    } = body
 
     if (!toolId) {
       return NextResponse.json({ error: 'toolId is required' }, { status: 400 })
@@ -86,6 +93,8 @@ export async function POST(req: NextRequest) {
       mappings: mappings || [],
       autoSyncOnScan: autoSyncOnScan ?? false,
       autoSyncOnValidation: autoSyncOnValidation ?? false,
+      outcomeFieldMappings: outcomeFieldMappings || [],
+      outcomeTagConfigs: outcomeTagConfigs || [],
     })
 
     return NextResponse.json({
