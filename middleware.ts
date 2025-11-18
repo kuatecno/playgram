@@ -14,6 +14,8 @@ const publicApiRoutes = [
   '/api/v1',
   '/api/verification',
   '/api/manychat/webhook',
+  '/api/webhooks/sentry', // Sentry webhook endpoint
+  '/api/sentry/recent-errors', // Sentry error monitoring (for Claude Code)
   '/api/test', // Test endpoints for infrastructure verification
 ]
 

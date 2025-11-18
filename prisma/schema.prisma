@@ -807,3 +807,52 @@ model PostCategoryAssignment {
   @@index([categoryId])
   @@index([order])
 }
+
+// ============================================================================
+// ERROR MONITORING & SENTRY INTEGRATION
+// ============================================================================
+
+model SentryEvent {
+  id            String   @id @default(cuid())
+  eventId       String   @unique // Sentry's event ID
+  level         String   // error, warning, info, debug
+  message       String   @db.Text
+  culprit       String?  // What caused the error
+  platform      String?  // javascript, node
+
+  // Error details
+  exception     Json?    // Exception type and value
+  stackTrace    Json?    // Full stack trace
+
+  // Context
+  environment   String?  // production, development
+  release       String?  // App version/release
+  url           String?  // URL where error occurred
+  userAgent     String?  // Browser user agent
+
+  // User information (if available)
+  userId        String?
+  userEmail     String?
+  userIpAddress String?
+
+  // Metadata
+  tags          Json?    // Sentry tags
+  contexts      Json?    // Additional context
+  breadcrumbs   Json?    // User actions leading to error
+  fingerprint   String[] // Error grouping fingerprint
+
+  // Status
+  isResolved    Boolean  @default(false)
+  resolvedAt    DateTime?
+
+  // Timestamps
+  timestamp     DateTime // When error occurred
+  receivedAt    DateTime @default(now()) // When we received webhook
+
+  @@index([eventId])
+  @@index([level])
+  @@index([environment])
+  @@index([timestamp])
+  @@index([isResolved])
+  @@index([userId])
+}

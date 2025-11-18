@@ -13,6 +13,7 @@ These are already configured in your `.env` file:
 - ✅ **Sentry** - DSN, org, project, and auth token configured
 - ✅ **ManyChat** - API URL configured
 - ✅ **App Config** - URL and name configured
+- ✅ **Cloudinary** - Cloud name, API key, and secret configured
 
 ## ⚠️ Optional - Add If Needed
 
@@ -24,16 +25,7 @@ OPENAI_API_KEY="sk-..."
 ```
 **Where to get:** https://platform.openai.com/api-keys
 
-### 2. Cloudinary (for Image Uploads)
-```bash
-CLOUDINARY_CLOUD_NAME="your-cloud-name"
-CLOUDINARY_API_KEY="123456789"
-CLOUDINARY_API_SECRET="abc..."
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="your-cloud-name"
-```
-**Where to get:** https://cloudinary.com/console
-
-### 3. Email Service (for Sending Emails)
+### 2. Email Service (for Sending Emails)
 Choose one:
 
 **Option A: SendGrid**
@@ -101,12 +93,6 @@ npm run worker
 1. Go to: https://platform.openai.com/api-keys
 2. Create new secret key
 3. Copy and add to `.env`
-
-### Cloudinary (Optional)
-1. Go to: https://cloudinary.com/users/register_free
-2. Sign up for free account
-3. Dashboard → Settings → Access Keys
-4. Copy cloud name, API key, and API secret
 
 ### SendGrid or Resend (Optional)
 **SendGrid:**
