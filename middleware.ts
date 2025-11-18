@@ -6,7 +6,16 @@ import type { NextRequest } from 'next/server'
 const publicRoutes = ['/', '/login', '/signup']
 
 // Define API routes that should be public
-const publicApiRoutes = ['/api/auth', '/api/qr', '/api/bookings', '/api/ai', '/api/v1', '/api/verification', '/api/manychat/webhook']
+const publicApiRoutes = [
+  '/api/auth',
+  '/api/qr',
+  '/api/bookings',
+  '/api/ai',
+  '/api/v1',
+  '/api/verification',
+  '/api/manychat/webhook',
+  '/api/test', // Test endpoints for infrastructure verification
+]
 
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
