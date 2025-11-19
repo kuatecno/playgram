@@ -128,10 +128,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Fix image URL to use the actual host from the request
+    // Fix image URL to use the actual host from the request or production URL
     const host = request.headers.get('host')
     const protocol = request.headers.get('x-forwarded-proto') || 'https'
-    const baseUrl = `${protocol}://${host}`
+    
+    // Use production URL if available, otherwise construct from request
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
     const fixedImageUrl = `${baseUrl}/api/v1/qr/image/${result.qrCode.code}`
 
     // Return ManyChat-compatible format (Instagram)
