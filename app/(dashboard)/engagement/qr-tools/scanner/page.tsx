@@ -134,7 +134,7 @@ export default function QRScannerPage() {
     }
   }
 
-  function onScanFailure(error: any) {
+  function onScanFailure(_error: any) {
     // handle scan failure, usually better to ignore and keep scanning.
     // console.warn(`Code scan error = ${error}`);
   }
