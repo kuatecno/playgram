@@ -136,11 +136,11 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             type: 'image',
-            url: result.qrCodeDataUrl,
+            url: result.qrCode.imageUrl,
           },
           {
             type: 'text',
-            text: `✅ Your QR code: ${result.qrCode.label}\n\nCode: ${result.qrCode.qrCodeUrl?.split('/').pop() || 'N/A'}`,
+            text: `✅ Your QR code: ${result.qrCode.label}\n\nCode: ${result.qrCode.code}`,
           },
         ],
         actions: [],

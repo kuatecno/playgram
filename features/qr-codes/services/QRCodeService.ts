@@ -57,8 +57,10 @@ export class QRCodeService {
       id: string
       type: string
       label: string
+      code: string
       qrCodeUrl: string
       scanUrl: string
+      imageUrl: string
     }
     qrCodeDataUrl: string
   }> {
@@ -152,6 +154,9 @@ export class QRCodeService {
       ? `${validatedFallbackUrl}?code=${encodeURIComponent(qrCode.code)}`
       : `${baseUrl}/api/v1/qr/scan/${qrCode.code}`
 
+    // Generate image URL
+    const imageUrl = `${baseUrl}/api/v1/qr/image/${qrCode.code}`
+
     // Get QR appearance settings from tool config
     const appearance: QRAppearanceSettings = qrToolConfigService.getAppearance(config)
 
@@ -188,11 +193,52 @@ export class QRCodeService {
         id: qrCode.id,
         type: qrCode.qrType,
         label: qrData?.label || '',
+        code: qrCode.code,
         qrCodeUrl: qrCodeDataUrl,
         scanUrl,
+        imageUrl,
       },
       qrCodeDataUrl,
     }
+  }
+
+  /**
+   * Generate QR code image buffer for a given code
+   */
+  async getQRCodeImage(code: string): Promise<Buffer> {
+    const qrCode = await db.qRCode.findUnique({
+      where: { code },
+      include: { tool: true },
+    })
+
+    if (!qrCode) {
+      throw new Error('QR code not found')
+    }
+
+    // Get config for the tool
+    const config = await qrToolConfigService.ensureConfigForTool(qrCode.toolId)
+
+    // Get appearance settings
+    const appearance = qrToolConfigService.getAppearance(config)
+
+    // Generate scan URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'
+    const validatedFallbackUrl = validateFallbackUrl(config.fallbackUrl)
+    const scanUrl = validatedFallbackUrl
+      ? `${validatedFallbackUrl}?code=${encodeURIComponent(qrCode.code)}`
+      : `${baseUrl}/api/v1/qr/scan/${qrCode.code}`
+
+    // Generate QR code image as buffer
+    return await QRCode.toBuffer(scanUrl, {
+      errorCorrectionLevel: appearance.errorCorrectionLevel || 'H',
+      type: 'png',
+      width: appearance.width || 512,
+      margin: appearance.margin !== undefined ? appearance.margin : 2,
+      color: {
+        dark: appearance.darkColor || '#000000',
+        light: appearance.lightColor || '#FFFFFF',
+      },
+    })
   }
 
   /**

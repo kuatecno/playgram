@@ -64,6 +64,12 @@ export const QR_AVAILABLE_FIELDS = [
     description: 'Number of times the QR code has been scanned',
     dataType: 'number',
   },
+  {
+    key: 'qr_image_url',
+    label: 'QR Image URL',
+    description: 'Direct URL to the QR code image',
+    dataType: 'text',
+  },
 ] as const
 
 export type QRFieldKey = typeof QR_AVAILABLE_FIELDS[number]['key']
@@ -185,6 +191,10 @@ export function extractQRCodeData(qrCode: any, tool: any): Record<string, any> {
   data['qr_tool_name'] = tool?.name || null
   data['qr_created_at'] = qrCode.createdAt?.toISOString() || null
   data['qr_scan_count'] = qrCode.scanCount || 0
+
+  // Generate image URL
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'
+  data['qr_image_url'] = `${baseUrl}/api/v1/qr/image/${qrCode.code}`
 
   return data
 }
