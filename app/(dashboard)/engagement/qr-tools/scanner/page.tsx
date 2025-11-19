@@ -73,7 +73,7 @@ export default function QRScannerPage() {
     }
   }, [scanning])
 
-  async function onScanSuccess(decodedText: string, decodedResult: any) {
+  async function onScanSuccess(decodedText: string, _decodedResult: any) {
     if (loading) return // Prevent double scans
     
     // Pause scanning
