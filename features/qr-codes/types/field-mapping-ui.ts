@@ -23,3 +23,9 @@ export const CORE_VALIDATION_STATUS_FIELD = {
   description: 'Core status of the validation (SUCCESS, FAILURE, etc.)',
   dataType: 'text',
 } as const
+
+export function generateDefaultFieldName(toolName: string, fieldKey: string): string {
+  const sanitizedToolName = toolName.toLowerCase().replace(/[^a-z0-9]/g, '_')
+  const sanitizedFieldKey = fieldKey.replace('qr_', '')
+  return `playgram_${sanitizedToolName}_${sanitizedFieldKey}`
+}
