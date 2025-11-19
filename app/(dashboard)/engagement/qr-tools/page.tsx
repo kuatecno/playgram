@@ -225,44 +225,45 @@ export default function QrToolsListPage() {
               </Button>
             </DialogTrigger>
             <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create QR Tool</DialogTitle>
-              <DialogDescription>
-                Create a new QR tool to manage a campaign with its own format, appearance, and settings.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  placeholder="e.g., Summer Promotion 2024"
-                  value={newToolName}
-                  onChange={(e) => setNewToolName(e.target.value)}
-                />
+              <DialogHeader>
+                <DialogTitle>Create QR Tool</DialogTitle>
+                <DialogDescription>
+                  Create a new QR tool to manage a campaign with its own format, appearance, and settings.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="e.g., Summer Promotion 2024"
+                    value={newToolName}
+                    onChange={(e) => setNewToolName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description (optional)</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Brief description of this QR campaign"
+                    rows={3}
+                    value={newToolDescription}
+                    onChange={(e) => setNewToolDescription(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (optional)</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Brief description of this QR campaign"
-                  rows={3}
-                  value={newToolDescription}
-                  onChange={(e) => setNewToolDescription(e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreateTool} disabled={creating}>
-                {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Tool
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateTool} disabled={creating}>
+                  {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Create Tool
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Dialog open={!!toolToDelete} onOpenChange={(open) => !open && setToolToDelete(null)}>
