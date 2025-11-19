@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+import { QrCodeManager } from './components/QrCodeManager'
 import {
   Tabs,
   TabsContent,
@@ -224,7 +225,6 @@ export default function QrToolConfigPage() {
   const [loading, setLoading] = useState(true)
   const [tool, setTool] = useState<Tool | null>(null)
   const [stats, setStats] = useState<QrStats | null>(null)
-  const [recentCodes, setRecentCodes] = useState<QrCodeListItem[]>([])
 
   const [formatPattern, setFormatPattern] = useState('')
   const [formatPreview, setFormatPreview] = useState('')
@@ -255,8 +255,6 @@ export default function QrToolConfigPage() {
   const [outcomeTagConfigs, setOutcomeTagConfigs] = useState<OutcomeTagConfig[]>([])
 
   const [pendingFieldRow, setPendingFieldRow] = useState<ExtendedQrFieldKey | null>(null)
-
-  const [activityLoading, setActivityLoading] = useState(false)
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -378,27 +376,7 @@ export default function QrToolConfigPage() {
   }
 
   async function loadRecentCodes() {
-    setActivityLoading(true)
-    try {
-      const res = await fetch(`/api/v1/qr?toolId=${toolId}&limit=10`)
-      const data = await res.json()
-      if (data.success) {
-        setRecentCodes(
-          (data.data?.qrCodes || []).map((item: any) => ({
-            id: item.id,
-            qrType: item.qrType,
-            metadata: item.metadata || {},
-            createdAt: item.createdAt,
-            scanCount: item.scanCount,
-            expiresAt: item.expiresAt,
-          }))
-        )
-      }
-    } catch (error) {
-      console.error('Failed to load recent QR codes:', error)
-    } finally {
-      setActivityLoading(false)
-    }
+    // QR codes are now managed by QrCodeManager component
   }
 
   async function loadToolSettings() {
@@ -719,7 +697,7 @@ export default function QrToolConfigPage() {
           manychatFieldId: '',
           manychatFieldName: '',
           enabled: false,
-          syncTiming: 'none',
+          syncTiming: 'never',
           ...partial,
         })
       } else {
