@@ -177,15 +177,6 @@ type QrStats = {
   byType: Array<{ type: string; count: number; scans: number }>
 }
 
-type QrCodeListItem = {
-  id: string
-  qrType: string
-  metadata: Record<string, any>
-  createdAt: string
-  scanCount: number
-  expiresAt: string | null
-}
-
 type QRValidationOutcome = 'sent' | 'validated_success' | 'validated_failed'
 type QRFailureReason = 'wrong_person' | 'expired' | 'already_used' | 'other'
 
