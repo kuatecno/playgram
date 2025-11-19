@@ -26,6 +26,7 @@ import {
   QrCode,
   Settings,
   Trash2,
+  Camera,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -211,13 +212,19 @@ export default function QrToolsListPage() {
           </div>
         </div>
 
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" /> New QR Tool
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href="/engagement/qr-tools/scanner">
+              <Camera className="mr-2 h-4 w-4" /> Open Scanner
+            </Link>
+          </Button>
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" /> New QR Tool
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
             <DialogHeader>
               <DialogTitle>Create QR Tool</DialogTitle>
               <DialogDescription>
