@@ -146,10 +146,6 @@ export async function POST(request: NextRequest) {
             type: 'image',
             url: fixedImageUrl,
           },
-          {
-            type: 'text',
-            text: `✅ Your QR code: ${result.qrCode.label}\n\nCode: ${result.qrCode.code}`,
-          },
         ],
         actions: [],
         quick_replies: [],
