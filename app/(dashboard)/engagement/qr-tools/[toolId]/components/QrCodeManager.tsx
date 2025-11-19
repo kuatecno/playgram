@@ -119,7 +119,7 @@ export function QrCodeManager({ toolId, users, loadingUsers, formatPattern }: Qr
 
   // Preview states
   const [formatPreview, setFormatPreview] = useState<string>('')
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [_selectedUser, setSelectedUser] = useState<User | null>(null)
 
   useEffect(() => {
     if (toolId) {
