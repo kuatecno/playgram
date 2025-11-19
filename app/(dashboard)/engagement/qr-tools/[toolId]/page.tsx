@@ -40,10 +40,15 @@ import { useToast } from '@/hooks/use-toast'
 import {
   SYNC_TIMING_OPTIONS,
   CORE_VALIDATION_STATUS_FIELD,
-  generateDefaultFieldName,
   type FieldMappingRow,
   type SyncTiming,
 } from '@/features/qr-codes/types/field-mapping-ui'
+
+function generateDefaultFieldName(toolName: string, fieldKey: string): string {
+  const sanitizedToolName = toolName.toLowerCase().replace(/[^a-z0-9]/g, '_')
+  const sanitizedFieldKey = fieldKey.replace('qr_', '')
+  return `playgram_${sanitizedToolName}_${sanitizedFieldKey}`
+}
 
 const DEFAULT_APPEARANCE = {
   width: 512,
