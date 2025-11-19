@@ -1,5 +1,4 @@
 import { db } from '@/lib/db'
-import { manychatService } from '@/features/manychat/services/ManychatService'
 import { qrToolConfigService, type QRValidationOutcome, type QRFailureReason } from './QRToolConfigService'
 import { syncQRDataToManychat } from './QRManychatSync'
 
