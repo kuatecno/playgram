@@ -9,7 +9,7 @@ export async function GET(
     const { code } = await params
     const imageBuffer = await qrCodeService.getQRCodeImage(code)
 
-    return new NextResponse(imageBuffer, {
+    return new NextResponse(imageBuffer.buffer as ArrayBuffer, {
       headers: {
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=31536000, immutable',
