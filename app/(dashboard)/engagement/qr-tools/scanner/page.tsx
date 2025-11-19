@@ -5,7 +5,7 @@ import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Scan, CheckCircle2, XCircle, RefreshCw, Camera, ArrowLeft } from 'lucide-react'
+import { Loader2, CheckCircle2, XCircle, Camera, ArrowLeft } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 
