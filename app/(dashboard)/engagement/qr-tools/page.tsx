@@ -342,7 +342,7 @@ export default function QrToolsListPage() {
                         </Link>
                       </Button>
                       <Button asChild variant="outline" className="flex-1">
-                        <Link href={`/engagement/qr-codes?toolId=${tool.id}`}>
+                        <Link href={`/engagement/qr-tools/${tool.id}?tab=activity`}>
                           <QrCode className="mr-2 h-4 w-4" /> View Codes
                         </Link>
                       </Button>

@@ -317,11 +317,11 @@ export default function QrToolConfigPage() {
       const usersRes = await fetch('/api/v1/users/manychat-contacts?limit=20')
       const usersData = await usersRes.json()
       if (usersData.success) {
-        const loadedUsers = (usersData.data?.contacts || []).map((c: any) => ({
+        const loadedUsers = (usersData.data?.users || usersData.data?.contacts || []).map((c: any) => ({
           id: c.id,
           firstName: c.firstName,
           lastName: c.lastName,
-          igUsername: c.igUsername,
+          igUsername: c.username || c.igUsername,
           manychatId: c.manychatId,
         }))
         setUsers(loadedUsers)
@@ -2043,47 +2043,12 @@ export default function QrToolConfigPage() {
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent QR codes</CardTitle>
-              <CardDescription>Latest codes generated with this tool.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {activityLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading activity...
-                </div>
-              ) : recentCodes.length === 0 ? (
-                <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  Generate a QR code to see activity populate here.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentCodes.map((code) => (
-                    <div key={code.id} className="flex flex-col gap-1 rounded-lg border p-3 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold uppercase">{code.qrType}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Created {formatDistanceToNow(new Date(code.createdAt), { addSuffix: true })}
-                          {code.expiresAt ? ` • expires ${formatDistanceToNow(new Date(code.expiresAt), { addSuffix: true })}` : ''}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-start gap-1 text-xs text-muted-foreground md:items-end">
-                        <div>Scans: {code.scanCount}</div>
-                        {code.metadata?.label && <div>Label: {code.metadata.label}</div>}
-                        {code.metadata?.campaign && <div>Campaign: {code.metadata.campaign}</div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex justify-end">
-                <Button variant="outline" size="sm" onClick={loadRecentCodes}>
-                  <RefreshCw className="mr-2 h-3.5 w-3.5" /> Refresh
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <QrCodeManager 
+            toolId={toolId} 
+            users={users} 
+            loadingUsers={loadingUsers} 
+            formatPattern={formatPattern} 
+          />
         </TabsContent>
       </Tabs>
     </div>
