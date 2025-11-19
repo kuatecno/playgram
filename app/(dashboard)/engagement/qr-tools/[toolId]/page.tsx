@@ -38,6 +38,14 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
+import {
+  SYNC_TIMING_OPTIONS,
+  CORE_VALIDATION_STATUS_FIELD,
+  generateDefaultFieldName,
+  type FieldMappingRow,
+  type SyncTiming,
+} from '@/features/qr-codes/types/field-mapping-ui'
+
 const DEFAULT_APPEARANCE = {
   width: 512,
   margin: 2,
@@ -81,6 +89,7 @@ const AVAILABLE_QR_FIELDS = [
   { key: 'qr_tool_name', label: 'Tool Name', description: 'Name of the QR tool', dataType: 'text' },
   { key: 'qr_created_at', label: 'Created At', description: 'Generation timestamp', dataType: 'datetime' },
   { key: 'qr_scan_count', label: 'Scan Count', description: 'Total scans recorded', dataType: 'number' },
+  { key: 'qr_image_url', label: 'QR Image URL', description: 'Direct URL to the QR code image', dataType: 'text' },
 ] as const
 
 const ERROR_CORRECTION_LEVELS = [
@@ -92,31 +101,9 @@ const ERROR_CORRECTION_LEVELS = [
 
 type QrFieldKey = (typeof AVAILABLE_QR_FIELDS)[number]['key']
 
-type ExtendedQrFieldKey = QrFieldKey | 'validation_status'
+type ExtendedQrFieldKey = QrFieldKey | 'core_validation_status'
 
-type SyncTimingOption = 'none' | 'sent' | 'validated_success' | 'validated_failed' | 'validation_all'
-
-const CORE_VALIDATION_FIELD: {
-  key: ExtendedQrFieldKey
-  label: string
-  description: string
-  dataType: string
-} = {
-  key: 'validation_status',
-  label: 'Validation status (core)',
-  description: 'Status or failure reason resolved after validation events',
-  dataType: 'text',
-}
-
-const FIELD_MAPPING_ROWS = [CORE_VALIDATION_FIELD, ...AVAILABLE_QR_FIELDS]
-
-const SYNC_TIMING_OPTIONS: { value: SyncTimingOption; label: string }[] = [
-  { value: 'none', label: 'Do not sync' },
-  { value: 'sent', label: 'On send' },
-  { value: 'validated_success', label: 'On validation — success' },
-  { value: 'validated_failed', label: 'On validation — failed' },
-  { value: 'validation_all', label: 'On both validations' },
-]
+const FIELD_MAPPING_ROWS = [CORE_VALIDATION_STATUS_FIELD, ...AVAILABLE_QR_FIELDS]
 
 const CREATE_FIELD_OPTION = '__create_field__'
 
@@ -127,14 +114,6 @@ type ManychatField = {
   name: string
   type: string
   description?: string
-}
-
-type FieldMappingRow = {
-  qrField: ExtendedQrFieldKey
-  manychatFieldId: string
-  manychatFieldName: string
-  enabled: boolean
-  syncTiming: SyncTimingOption
 }
 
 function normalizeFieldMappings(rawMappings: any[]): FieldMappingRow[] {
@@ -148,14 +127,14 @@ function normalizeFieldMappings(rawMappings: any[]): FieldMappingRow[] {
     const qrField = (mapping?.qrField as ExtendedQrFieldKey) || 'qr_code'
     const manychatFieldId = mapping?.manychatFieldId || ''
     const syncTiming =
-      (mapping?.syncTiming as SyncTimingOption) || (mapping?.enabled ? 'validation_all' : 'none') || 'none'
+      (mapping?.syncTiming as SyncTiming) || (mapping?.enabled ? 'both' : 'never')
 
     deduped.set(qrField, {
       qrField,
       manychatFieldId,
       manychatFieldName: mapping?.manychatFieldName || '',
       syncTiming,
-      enabled: Boolean(manychatFieldId && syncTiming !== 'none'),
+      enabled: Boolean(manychatFieldId && syncTiming !== 'never'),
     })
   })
 
@@ -1752,8 +1731,12 @@ export default function QrToolConfigPage() {
                                     onChange={(event) => {
                                       const value = event.target.value
                                       if (value === CREATE_FIELD_OPTION) {
+                                        // Auto-create field logic
+                                        const suggestedName = generateDefaultFieldName(tool?.name || 'tool', field.key)
+                                        setNewFieldName(suggestedName)
+                                        setNewFieldType(field.dataType as ManychatFieldType)
+                                        setNewFieldDescription(field.description)
                                         setPendingFieldRow(field.key)
-                                        setNewFieldName('')
                                       } else {
                                         updateFieldMapping(field.key, {
                                           manychatFieldId: value,
@@ -1774,22 +1757,22 @@ export default function QrToolConfigPage() {
                                 )}
                               </td>
                               <td className="px-4 py-3 align-top">
-                                <select
-                                  className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                                  value={mapping?.syncTiming || 'none'}
-                                  onChange={(event) =>
-                                    updateFieldMapping(field.key, {
-                                      syncTiming: event.target.value as SyncTimingOption,
-                                    })
-                                  }
-                                  disabled={!mapping?.manychatFieldId}
-                                >
-                                  {SYNC_TIMING_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                      {option.label}
-                                    </option>
-                                  ))}
-                                </select>
+                                  <select
+                                    className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                                    value={mapping?.syncTiming || 'never'}
+                                    onChange={(event) =>
+                                      updateFieldMapping(field.key, {
+                                        syncTiming: event.target.value as SyncTiming,
+                                      })
+                                    }
+                                    disabled={!mapping?.manychatFieldId}
+                                  >
+                                    {SYNC_TIMING_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
                               </td>
                             </tr>
                           )
@@ -1992,6 +1975,185 @@ export default function QrToolConfigPage() {
                       <Save className="mr-2 h-4 w-4" />
                     )}
                     Save Outcome Configuration
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Tag Automations</CardTitle>
+              <CardDescription>
+                Add or remove ManyChat tags based on QR validation outcomes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!manychatConnected ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                  <p className="text-xs text-amber-900">
+                    <strong>Note:</strong> Connect ManyChat to configure tag automations.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <h4 className="text-sm font-semibold">Tag Rules</h4>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setShowCreateTagDialog(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> Create Tag
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        const newConfig: OutcomeTagConfig = {
+                          id: Date.now().toString(),
+                          outcome: 'validated_success',
+                          tagIds: [],
+                          tagNames: [],
+                          action: 'add',
+                          enabled: true,
+                        }
+                        setOutcomeTagConfigs((prev) => [...prev, newConfig])
+                      }}>
+                        <Plus className="mr-2 h-4 w-4" /> Add Rule
+                      </Button>
+                    </div>
+                  </div>
+
+                  {outcomeTagConfigs.length === 0 ? (
+                    <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                      No tag rules configured. Click &quot;Add Rule&quot; to automate tagging based on validation outcomes.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {outcomeTagConfigs.map((config) => (
+                        <div key={config.id} className="rounded-lg border p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={config.enabled}
+                                onChange={(e) =>
+                                  setOutcomeTagConfigs((prev) =>
+                                    prev.map((c) => (c.id === config.id ? { ...c, enabled: e.target.checked } : c))
+                                  )
+                                }
+                                className="h-4 w-4 rounded border-gray-300"
+                              />
+                              <Label className="text-sm font-medium">
+                                {config.enabled ? 'Enabled' : 'Disabled'}
+                              </Label>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setOutcomeTagConfigs((prev) => prev.filter((c) => c.id !== config.id))}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label className="text-xs">Outcome</Label>
+                              <select
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                                value={config.outcome}
+                                onChange={(e) =>
+                                  setOutcomeTagConfigs((prev) =>
+                                    prev.map((c) =>
+                                      c.id === config.id ? { ...c, outcome: e.target.value as QRValidationOutcome } : c
+                                    )
+                                  )
+                                }
+                              >
+                                <option value="sent">Sent</option>
+                                <option value="validated_success">Validated Success</option>
+                                <option value="validated_failed">Validated Failed</option>
+                              </select>
+                            </div>
+
+                            {config.outcome === 'validated_failed' && (
+                              <div className="space-y-2">
+                                <Label className="text-xs">Failure Reason (Optional)</Label>
+                                <select
+                                  className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                                  value={config.failureReason || ''}
+                                  onChange={(e) =>
+                                    setOutcomeTagConfigs((prev) =>
+                                      prev.map((c) =>
+                                        c.id === config.id
+                                          ? { ...c, failureReason: e.target.value ? (e.target.value as QRFailureReason) : undefined }
+                                          : c
+                                      )
+                                    )
+                                  }
+                                >
+                                  <option value="">— Any failure —</option>
+                                  <option value="wrong_person">Wrong Person</option>
+                                  <option value="expired">Expired</option>
+                                  <option value="already_used">Already Used</option>
+                                  <option value="other">Other</option>
+                                </select>
+                              </div>
+                            )}
+
+                            <div className="space-y-2">
+                              <Label className="text-xs">Action</Label>
+                              <select
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                                value={config.action}
+                                onChange={(e) =>
+                                  setOutcomeTagConfigs((prev) =>
+                                    prev.map((c) =>
+                                      c.id === config.id ? { ...c, action: e.target.value as 'add' | 'remove' } : c
+                                    )
+                                  )
+                                }
+                              >
+                                <option value="add">Add Tag</option>
+                                <option value="remove">Remove Tag</option>
+                              </select>
+                            </div>
+
+                            <div className="space-y-2 md:col-span-2">
+                              <Label className="text-xs">Tag</Label>
+                              <select
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                                value={config.tagIds[0] || ''}
+                                onChange={(e) => {
+                                  const tagId = e.target.value
+                                  const tagName = _manychatTags.find((t) => t.id === tagId)?.name || ''
+                                  setOutcomeTagConfigs((prev) =>
+                                    prev.map((c) =>
+                                      c.id === config.id
+                                        ? { ...c, tagIds: [tagId], tagNames: [tagName] }
+                                        : c
+                                    )
+                                  )
+                                }}
+                              >
+                                <option value="">— Select tag —</option>
+                                {_manychatTags.map((tag) => (
+                                  <option key={tag.id} value={tag.id}>
+                                    {tag.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <Button onClick={handleSaveFieldMappings} disabled={fieldMappingsSaving}>
+                    {fieldMappingsSaving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    Save Tag Configuration
                   </Button>
                 </div>
               )}

@@ -161,6 +161,7 @@ export function isQRFieldMappingConfig(value: unknown): value is {
     if (typeof m.manychatFieldId !== 'string') return false
     if (typeof m.manychatFieldName !== 'string') return false
     if (typeof m.enabled !== 'boolean') return false
+    if (m.syncTiming !== undefined && typeof m.syncTiming !== 'string') return false
   }
 
   // Validate outcomeFieldMappings if present

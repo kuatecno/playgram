@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { manychatService } from '@/features/manychat/services/ManychatService'
 import { qrToolConfigService, type QRValidationOutcome, type QRFailureReason } from './QRToolConfigService'
+import { syncQRDataToManychat } from './QRManychatSync'
 
 export interface QRValidationRequest {
   qrCode: string
@@ -18,25 +19,6 @@ export interface QRValidationResult {
   fieldsUpdated: number
   tagsApplied: number
   errors: string[]
-}
-
-/**
- * Token replacement for field values
- */
-function replaceTokens(template: string, context: Record<string, any>): string {
-  let result = template
-
-  // Replace all tokens in the format {{token_name}}
-  const tokenRegex = /\{\{([^}]+)\}\}/g
-  result = result.replace(tokenRegex, (match, tokenName) => {
-    const value = context[tokenName.trim()]
-    if (value === undefined || value === null) {
-      return match // Keep original if no value found
-    }
-    return String(value)
-  })
-
-  return result
 }
 
 /**
@@ -92,7 +74,7 @@ export async function validateQRCode(
       result.outcome = 'validated_failed'
       result.failureReason = 'expired'
       result.message = 'QR code has expired'
-      await applyOutcomeMappings(qrCode, result, request.manychatId || request.userId, adminId)
+      await triggerSync(qrCode, result, request.manychatId || request.userId, adminId)
       return result
     }
 
@@ -105,19 +87,18 @@ export async function validateQRCode(
         result.outcome = 'validated_failed'
         result.failureReason = 'wrong_person'
         result.message = 'This QR code belongs to a different user'
-        await applyOutcomeMappings(qrCode, result, providedManychatId, adminId)
+        await triggerSync(qrCode, result, providedManychatId, adminId)
         return result
       }
     }
 
     // 4. Check if already used (based on scan count or custom logic)
-    // This is a simple example - you might want more sophisticated logic
     const maxScans = (qrCode.metadata as any)?.maxScans
     if (maxScans && qrCode.scanCount >= maxScans) {
       result.outcome = 'validated_failed'
       result.failureReason = 'already_used'
       result.message = 'QR code has already been used'
-      await applyOutcomeMappings(qrCode, result, request.manychatId || request.userId, adminId)
+      await triggerSync(qrCode, result, request.manychatId || request.userId, adminId)
       return result
     }
 
@@ -136,7 +117,7 @@ export async function validateQRCode(
     result.failureReason = undefined
 
     // 6. Apply outcome-based mappings and tags
-    await applyOutcomeMappings(qrCode, result, request.manychatId || request.userId, adminId)
+    await triggerSync(qrCode, result, request.manychatId || request.userId, adminId)
 
     return result
   } catch (error: any) {
@@ -147,100 +128,47 @@ export async function validateQRCode(
 }
 
 /**
- * Apply field mappings and tags based on validation outcome
+ * Helper to trigger sync via QRManychatSync service
  */
-async function applyOutcomeMappings(
+async function triggerSync(
   qrCode: any,
   validationResult: QRValidationResult,
   manychatId: string,
   adminId: string
-): Promise<void> {
-  try {
-    const config = qrCode.tool?.qrConfig
-    if (!config || !config.fieldMappings) {
-      return
-    }
+) {
+  // We need a userId for sync. If qrCode has one, use it.
+  // If not, we might need to find the user by manychatId or just pass the manychatId if the service supported it.
+  // Currently syncQRDataToManychat requires userId (internal DB ID).
+  
+  let userId = qrCode.userId
+  if (!userId) {
+    // Try to find user by manychatId
+    const user = await db.user.findFirst({
+      where: { manychatId },
+      select: { id: true }
+    })
+    userId = user?.id
+  }
 
-    const mappingConfig = qrToolConfigService.getFieldMappingConfig(config)
-    const outcomeFieldMappings = mappingConfig.outcomeFieldMappings || []
-    const outcomeTagConfigs = mappingConfig.outcomeTagConfigs || []
+  if (!userId) {
+    validationResult.errors.push('Could not find user for sync')
+    return
+  }
 
-    // Get API token
-    const apiToken = await manychatService.getApiToken(adminId)
-    if (!apiToken) {
-      validationResult.errors.push('ManyChat not connected')
-      return
-    }
-
-    // Prepare context for token replacement
-    const context: Record<string, any> = {
-      qr_code: qrCode.code,
-      qr_type: qrCode.qrType,
-      qr_scan_count: qrCode.scanCount + 1, // Include the new scan
-      timestamp: Math.floor(Date.now() / 1000),
-      date: new Date().toISOString().split('T')[0].replace(/-/g, ''),
+  const syncResult = await syncQRDataToManychat({
+    qrCodeId: qrCode.id,
+    userId,
+    adminId,
+    trigger: 'validation',
+    validationResult: {
       outcome: validationResult.outcome,
-      failure_reason: validationResult.failureReason || '',
-      message: validationResult.message,
+      failureReason: validationResult.failureReason
     }
+  })
 
-    // Add user info if available
-    if (qrCode.user) {
-      context.first_name = qrCode.user.firstName || ''
-      context.last_name = qrCode.user.lastName || ''
-      context.full_name = `${qrCode.user.firstName || ''} ${qrCode.user.lastName || ''}`.trim()
-      context.igUsername = qrCode.user.igUsername || ''
-    }
-
-    // 1. Apply field mappings for this outcome
-    const applicableMappings = outcomeFieldMappings.filter(
-      (m) =>
-        m.enabled &&
-        m.outcome === validationResult.outcome &&
-        (!m.failureReason || m.failureReason === validationResult.failureReason)
-    )
-
-    for (const mapping of applicableMappings) {
-      try {
-        const value = replaceTokens(mapping.value, context)
-        await manychatService.setCustomFieldWithToken(
-          apiToken,
-          manychatId,
-          mapping.manychatFieldId,
-          value
-        )
-        validationResult.fieldsUpdated++
-      } catch (error: any) {
-        validationResult.errors.push(
-          `Failed to set field ${mapping.manychatFieldName}: ${error.message}`
-        )
-      }
-    }
-
-    // 2. Apply tags for this outcome
-    const applicableTags = outcomeTagConfigs.filter(
-      (t) =>
-        t.enabled &&
-        t.outcome === validationResult.outcome &&
-        (!t.failureReason || t.failureReason === validationResult.failureReason)
-    )
-
-    for (const tagConfig of applicableTags) {
-      try {
-        for (const tagId of tagConfig.tagIds) {
-          if (tagConfig.action === 'add') {
-            await manychatService.addTagToContact(adminId, manychatId, tagId)
-          } else {
-            await manychatService.removeTagFromContact(adminId, manychatId, tagId)
-          }
-          validationResult.tagsApplied++
-        }
-      } catch (error: any) {
-        validationResult.errors.push(`Failed to apply tags: ${error.message}`)
-      }
-    }
-  } catch (error: any) {
-    validationResult.errors.push(`Failed to apply outcome mappings: ${error.message}`)
+  validationResult.fieldsUpdated = syncResult.syncedFields
+  if (syncResult.errors.length > 0) {
+    validationResult.errors.push(...syncResult.errors)
   }
 }
 
@@ -291,7 +219,7 @@ export async function recordQRCodeSent(
     result.success = true
 
     // Apply outcome-based mappings for 'sent' outcome
-    await applyOutcomeMappings(qrCode, result, manychatId, adminId)
+    await triggerSync(qrCode, result, manychatId, adminId)
 
     return result
   } catch (error: any) {

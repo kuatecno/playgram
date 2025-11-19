@@ -47,6 +47,7 @@ export interface QRFieldMappingConfigData {
     manychatFieldId: string
     manychatFieldName: string
     enabled: boolean
+    syncTiming?: 'scan' | 'validation' | 'both' | 'never'
   }>
   autoSyncOnScan: boolean
   autoSyncOnValidation: boolean

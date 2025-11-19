@@ -14,13 +14,17 @@ export interface SyncOptions {
   userId: string
   adminId: string
   trigger: 'scan' | 'validation'
+  validationResult?: {
+    outcome: 'sent' | 'validated_success' | 'validated_failed'
+    failureReason?: string
+  }
 }
 
 /**
  * Sync QR code data to Manychat custom fields
  */
 export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncResult> {
-  const { qrCodeId, userId, adminId, trigger } = options
+  const { qrCodeId, userId, adminId, trigger, validationResult } = options
 
   const result: SyncResult = {
     success: false,
@@ -50,24 +54,12 @@ export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncRe
     // 2. Get field mapping config for this tool
     const mappingConfig = await getQRFieldMappings(qrCode.tool.id)
 
-    if (!mappingConfig || mappingConfig.mappings.length === 0) {
-      // No mappings configured - skip sync
+    if (!mappingConfig) {
       result.success = true
       return result
     }
 
-    // 3. Check if sync should happen based on trigger
-    if (trigger === 'scan' && !mappingConfig.autoSyncOnScan) {
-      result.success = true
-      return result
-    }
-
-    if (trigger === 'validation' && !mappingConfig.autoSyncOnValidation) {
-      result.success = true
-      return result
-    }
-
-    // 4. Get user's Manychat ID
+    // 3. Get user's Manychat ID
     const user = await db.user.findUnique({
       where: { id: userId },
       select: { manychatId: true },
@@ -80,25 +72,21 @@ export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncRe
 
     result.manychatId = user.manychatId
 
-    // 5. Extract QR code data
-    const qrData = extractQRCodeData(qrCode, qrCode.tool)
-
-    // 6. Verify Manychat is configured
+    // 4. Verify Manychat is configured
     const apiToken = await manychatService.getApiToken(adminId)
     if (!apiToken) {
       result.errors.push('Manychat API token not configured')
       return result
     }
 
-    // 7. Create sync log FIRST (using transaction for safety)
-    // This ensures we always have a record, even if API calls fail
+    // 5. Create sync log FIRST
     const syncLog = await db.$transaction(async (tx) => {
       return await tx.qRSyncLog.create({
         data: {
           qrCodeId: qrCode.id,
           userId,
           trigger,
-          success: false, // Will update after sync
+          success: false,
           syncedFields: 0,
           errors: null,
           timestamp: new Date(),
@@ -106,8 +94,33 @@ export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncRe
       })
     })
 
-    // 8. Sync each enabled field mapping (external API calls, cannot be in transaction)
-    const enabledMappings = mappingConfig.mappings.filter((m) => m.enabled)
+    // 6. Extract QR code data
+    const qrData = extractQRCodeData(qrCode, qrCode.tool)
+
+    // Add core validation status if available
+    if (validationResult) {
+      let status = 'UNKNOWN'
+      if (validationResult.outcome === 'validated_success') status = 'SUCCESS'
+      else if (validationResult.outcome === 'validated_failed') {
+        status = validationResult.failureReason ? validationResult.failureReason.toUpperCase() : 'FAILURE'
+      } else if (validationResult.outcome === 'sent') status = 'SENT'
+      
+      qrData['core_validation_status'] = status
+    }
+
+    // 7. Sync standard field mappings
+    const enabledMappings = mappingConfig.mappings.filter((m) => {
+      if (!m.enabled) return false
+      
+      // Check sync timing
+      const timing = m.syncTiming || (mappingConfig.autoSyncOnScan ? 'scan' : 'never') // Fallback for legacy
+      
+      if (timing === 'both') return true
+      if (timing === 'scan' && trigger === 'scan') return true
+      if (timing === 'validation' && trigger === 'validation') return true
+      
+      return false
+    })
 
     for (const mapping of enabledMappings) {
       try {
@@ -142,7 +155,64 @@ export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncRe
       }
     }
 
-    // 9. Update sync log with results
+    // 8. Sync outcome-based field mappings (only on validation)
+    if (trigger === 'validation' && validationResult && mappingConfig.outcomeFieldMappings) {
+      const outcomeMappings = mappingConfig.outcomeFieldMappings.filter(m => 
+        m.enabled && 
+        m.outcome === validationResult.outcome &&
+        (!m.failureReason || m.failureReason === validationResult.failureReason)
+      )
+
+      for (const mapping of outcomeMappings) {
+        try {
+          // Resolve tokens in value
+          let value = mapping.value
+          // Simple token replacement
+          Object.entries(qrData).forEach(([key, val]) => {
+             value = value.replace(new RegExp(`{{${key}}}`, 'g'), String(val))
+          })
+
+          await manychatService.setCustomField(
+            adminId,
+            user.manychatId,
+            mapping.manychatFieldId,
+            value
+          )
+          result.syncedFields++
+        } catch (error: any) {
+          result.errors.push(
+            `Failed to sync outcome field ${mapping.manychatFieldName}: ${error.message}`
+          )
+        }
+      }
+    }
+
+    // 9. Apply tag automations (only on validation)
+    if (trigger === 'validation' && validationResult && mappingConfig.outcomeTagConfigs) {
+      const tagConfigs = mappingConfig.outcomeTagConfigs.filter(c => 
+        c.enabled && 
+        c.outcome === validationResult.outcome &&
+        (!c.failureReason || c.failureReason === validationResult.failureReason)
+      )
+
+      for (const config of tagConfigs) {
+        try {
+          for (const tagId of config.tagIds) {
+            if (config.action === 'add') {
+              await manychatService.addTag(adminId, user.manychatId, tagId)
+            } else {
+              await manychatService.removeTag(adminId, user.manychatId, tagId)
+            }
+          }
+        } catch (error: any) {
+          result.errors.push(
+            `Failed to apply tag action ${config.action}: ${error.message}`
+          )
+        }
+      }
+    }
+
+    // 10. Update sync log with results
     await db.qRSyncLog.update({
       where: { id: syncLog.id },
       data: {

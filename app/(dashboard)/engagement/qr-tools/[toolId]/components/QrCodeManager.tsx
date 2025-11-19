@@ -36,7 +36,6 @@ import {
   Trash2,
   Power,
   CheckCircle2,
-  AlertCircle,
   Users,
   QrCode as QrCodeIcon
 } from 'lucide-react'

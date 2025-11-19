@@ -70,6 +70,12 @@ export const QR_AVAILABLE_FIELDS = [
     description: 'Direct URL to the QR code image',
     dataType: 'text',
   },
+  {
+    key: 'core_validation_status',
+    label: 'Validation Status',
+    description: 'Core status of the validation (SUCCESS, FAILURE, etc.)',
+    dataType: 'text',
+  },
 ] as const
 
 export type QRFieldKey = typeof QR_AVAILABLE_FIELDS[number]['key']
@@ -79,6 +85,7 @@ export interface QRFieldMapping {
   manychatFieldId: string
   manychatFieldName: string
   enabled: boolean
+  syncTiming?: 'scan' | 'validation' | 'both' | 'never'
 }
 
 export interface QRFieldMappingConfig {
