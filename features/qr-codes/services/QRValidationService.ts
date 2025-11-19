@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { qrToolConfigService, type QRValidationOutcome, type QRFailureReason } from './QRToolConfigService'
+import { type QRValidationOutcome, type QRFailureReason } from './QRToolConfigService'
 import { syncQRDataToManychat } from './QRManychatSync'
 
 export interface QRValidationRequest {
