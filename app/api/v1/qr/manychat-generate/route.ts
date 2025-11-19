@@ -128,6 +128,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Fix image URL to use the actual host from the request
+    const host = request.headers.get('host')
+    const protocol = request.headers.get('x-forwarded-proto') || 'https'
+    const baseUrl = `${protocol}://${host}`
+    const fixedImageUrl = `${baseUrl}/api/v1/qr/image/${result.qrCode.code}`
+
     // Return ManyChat-compatible format (Instagram)
     return Response.json({
       version: 'v2',
@@ -136,7 +142,7 @@ export async function POST(request: NextRequest) {
         messages: [
           {
             type: 'image',
-            url: result.qrCode.imageUrl,
+            url: fixedImageUrl,
           },
           {
             type: 'text',
