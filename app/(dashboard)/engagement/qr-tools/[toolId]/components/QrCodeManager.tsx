@@ -439,13 +439,15 @@ export function QrCodeManager({ toolId, users, loadingUsers, formatPattern }: Qr
   return (
     <div className="space-y-6">
       <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => {
+          setBulkGeneratedQRs([])
+          setIsBulkDialogOpen(true)
+        }}>
+          <Users className="mr-2 h-4 w-4" />
+          Bulk Generate
+        </Button>
+
         <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
-          <SelectTrigger asChild>
-            <Button variant="outline" onClick={() => setBulkGeneratedQRs([])}>
-              <Users className="mr-2 h-4 w-4" />
-              Bulk Generate
-            </Button>
-          </SelectTrigger>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             {bulkGeneratedQRs.length > 0 ? (
               <div className="space-y-4">
@@ -600,12 +602,14 @@ export function QrCodeManager({ toolId, users, loadingUsers, formatPattern }: Qr
           </DialogContent>
         </Dialog>
 
+        <Button onClick={() => {
+          setGeneratedQR(null)
+          setIsCreateDialogOpen(true)
+        }}>
+          <Plus className="mr-2 h-4 w-4" /> Create QR Code
+        </Button>
+
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <SelectTrigger asChild>
-            <Button onClick={() => setGeneratedQR(null)}>
-              <Plus className="mr-2 h-4 w-4" /> Create QR Code
-            </Button>
-          </SelectTrigger>
           <DialogContent className="sm:max-w-[525px]">
             {generatedQR ? (
               <div className="space-y-4">
