@@ -38,6 +38,8 @@ export default function QRScannerPage() {
   const [processing, setProcessing] = useState(false)
   const [scanResult, setScanResult] = useState<QRDetails | null>(null)
   const [validationResult, setValidationResult] = useState<any | null>(null)
+  const [manualCode, setManualCode] = useState('')
+  const [showManualEntry, setShowManualEntry] = useState(false)
   
   const scannerRef = useRef<Html5QrcodeScanner | null>(null)
   const { toast } = useToast()
@@ -180,8 +182,47 @@ export default function QRScannerPage() {
   function handleReset() {
     setScanResult(null)
     setValidationResult(null)
+    setManualCode('')
+    setShowManualEntry(false)
     setScanning(true)
     // The useEffect will re-initialize the scanner
+  }
+
+  async function handleManualLookup() {
+    if (!manualCode.trim()) {
+      toast({
+        title: 'Code Required',
+        description: 'Please enter a QR code.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/v1/qr/lookup/${manualCode.trim()}`)
+      const data = await res.json()
+
+      if (data.success) {
+        setScanResult(data.data)
+        setScanning(false)
+        setShowManualEntry(false)
+      } else {
+        toast({
+          title: 'QR Code Not Found',
+          description: 'The code does not exist in the system.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Lookup Failed',
+        description: 'Could not verify QR code details.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -199,14 +240,72 @@ export default function QRScannerPage() {
         </div>
       </div>
 
-      {scanning && (
+      {scanning && !showManualEntry && (
         <Card>
           <CardContent className="p-6">
             <div id="reader" className="w-full rounded-lg overflow-hidden bg-black"></div>
             <p className="text-center text-sm text-muted-foreground mt-4">
                 Position the QR code within the frame to scan.
             </p>
+            <div className="flex justify-center mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setScanning(false)
+                  setShowManualEntry(true)
+                }}
+              >
+                Enter Code Manually
+              </Button>
+            </div>
           </CardContent>
+        </Card>
+      )}
+
+      {showManualEntry && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Manual Code Entry</CardTitle>
+            <CardDescription>
+              Enter the QR code manually if camera is not available.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="manualCode">QR Code</Label>
+              <Input
+                id="manualCode"
+                placeholder="e.g., RNNIMYKGQ1"
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleManualLookup()
+                  }
+                }}
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowManualEntry(false)
+                setScanning(true)
+              }}
+              className="flex-1"
+            >
+              Back to Camera
+            </Button>
+            <Button 
+              onClick={handleManualLookup}
+              disabled={loading}
+              className="flex-1"
+            >
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Lookup Code
+            </Button>
+          </CardFooter>
         </Card>
       )}
 
