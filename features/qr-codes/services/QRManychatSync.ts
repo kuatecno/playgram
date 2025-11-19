@@ -199,9 +199,9 @@ export async function syncQRDataToManychat(options: SyncOptions): Promise<SyncRe
         try {
           for (const tagId of config.tagIds) {
             if (config.action === 'add') {
-              await manychatService.addTag(adminId, user.manychatId, tagId)
+              await manychatService.addTagToContact(adminId, user.manychatId, tagId)
             } else {
-              await manychatService.removeTag(adminId, user.manychatId, tagId)
+              await manychatService.removeTagFromContact(adminId, user.manychatId, tagId)
             }
           }
         } catch (error: any) {
