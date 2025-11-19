@@ -35,7 +35,8 @@ type QRDetails = {
 }
 
 export default function QRScannerPage() {
-  const [scanning, setScanning] = useState(true)
+  const [scanning, setScanning] = useState(false)
+  const [cameraStarted, setCameraStarted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [scanResult, setScanResult] = useState<QRDetails | null>(null)
@@ -48,7 +49,7 @@ export default function QRScannerPage() {
 
   useEffect(() => {
     // Initialize scanner only if we are in scanning mode and haven't initialized yet
-    if (scanning && !scannerRef.current) {
+    if (scanning && !scannerRef.current && cameraStarted) {
       const scanner = new Html5QrcodeScanner(
         "reader",
         { 
@@ -76,7 +77,12 @@ export default function QRScannerPage() {
         scannerRef.current = null
       }
     }
-  }, [scanning])
+  }, [scanning, cameraStarted])
+
+  const handleStartCamera = () => {
+    setScanning(true)
+    setCameraStarted(true)
+  }
 
   async function onScanSuccess(decodedText: string, _decodedResult: any) {
     if (loading) return // Prevent double scans
@@ -186,8 +192,9 @@ export default function QRScannerPage() {
     setValidationResult(null)
     setManualCode('')
     setShowManualEntry(false)
-    setScanning(true)
-    // The useEffect will re-initialize the scanner
+    setScanning(false)
+    setCameraStarted(false)
+    // The useEffect will re-initialize the scanner when camera is started again
   }
 
   async function handleManualLookup() {
@@ -242,7 +249,31 @@ export default function QRScannerPage() {
         </div>
       </div>
 
-      {scanning && !showManualEntry && (
+      {!cameraStarted && !showManualEntry && !scanResult && (
+        <Card>
+          <CardContent className="py-12 flex flex-col items-center gap-4">
+            <Camera className="h-16 w-16 text-muted-foreground" />
+            <div className="text-center space-y-2">
+              <h3 className="text-lg font-semibold">Ready to Scan</h3>
+              <p className="text-sm text-muted-foreground">Choose how you want to validate a QR code</p>
+            </div>
+            <div className="flex gap-3">
+              <Button onClick={handleStartCamera}>
+                <Camera className="mr-2 h-4 w-4" />
+                Start Camera
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowManualEntry(true)}
+              >
+                Enter Code Manually
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {scanning && cameraStarted && !showManualEntry && (
         <Card>
           <CardContent className="p-6">
             <div id="reader" className="w-full rounded-lg overflow-hidden bg-black"></div>
@@ -254,6 +285,7 @@ export default function QRScannerPage() {
                 variant="outline" 
                 onClick={() => {
                   setScanning(false)
+                  setCameraStarted(false)
                   setShowManualEntry(true)
                 }}
               >
@@ -293,11 +325,11 @@ export default function QRScannerPage() {
               variant="outline" 
               onClick={() => {
                 setShowManualEntry(false)
-                setScanning(true)
+                setCameraStarted(false)
               }}
               className="flex-1"
             >
-              Back to Camera
+              Back
             </Button>
             <Button 
               onClick={handleManualLookup}
