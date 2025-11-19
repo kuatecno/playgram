@@ -51,7 +51,8 @@ export default function QRScannerPage() {
           fps: 10, 
           qrbox: { width: 250, height: 250 },
           formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
-          supportedScanTypes: [] // Default to camera
+          aspectRatio: 1.0,
+          showTorchButtonIfSupported: true,
         },
         /* verbose= */ false
       )
