@@ -3,8 +3,16 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 import {
   LayoutDashboard,
   Users,
@@ -17,6 +25,7 @@ import {
   Calendar,
   MessageSquare,
   Zap,
+  Menu,
 } from 'lucide-react'
 
 interface DashboardNavProps {
@@ -44,22 +53,22 @@ const navigation = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
-export function DashboardNav({ user }: DashboardNavProps) {
-  const pathname = usePathname()
-
+// Navigation content component - reused for both desktop sidebar and mobile drawer
+function NavContent({
+  pathname,
+  user,
+  onNavigate,
+}: {
+  pathname: string
+  user: DashboardNavProps['user']
+  onNavigate?: () => void
+}) {
   const handleSignOut = () => {
     signOut({ callbackUrl: '/login' })
   }
 
   return (
-    <div className="flex w-64 flex-col border-r bg-white dark:bg-gray-800">
-      {/* Logo */}
-      <div className="flex h-16 items-center border-b px-6">
-        <Link href="/dashboard" className="text-xl font-bold">
-          Playgram
-        </Link>
-      </div>
-
+    <>
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
@@ -77,6 +86,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
                       <Link
                         key={child.href}
                         href={child.href}
+                        onClick={onNavigate}
                         className={cn(
                           'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                           isActive
@@ -99,6 +109,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isActive
@@ -133,6 +144,58 @@ export function DashboardNav({ user }: DashboardNavProps) {
           Sign Out
         </Button>
       </div>
-    </div>
+    </>
+  )
+}
+
+export function DashboardNav({ user }: DashboardNavProps) {
+  const pathname = usePathname()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  return (
+    <>
+      {/* Mobile menu button */}
+      <div className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-white px-4 lg:hidden dark:bg-gray-800">
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <Menu className="h-6 w-6" />
+              <span className="sr-only">Toggle menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <SheetHeader className="border-b p-6">
+              <SheetTitle>
+                <Link href="/dashboard" className="text-xl font-bold">
+                  Playgram
+                </Link>
+              </SheetTitle>
+            </SheetHeader>
+            <div className="flex h-[calc(100vh-5rem)] flex-col">
+              <NavContent
+                pathname={pathname}
+                user={user}
+                onNavigate={() => setMobileMenuOpen(false)}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+        <Link href="/dashboard" className="text-xl font-bold">
+          Playgram
+        </Link>
+      </div>
+
+      {/* Desktop sidebar */}
+      <div className="hidden lg:flex w-64 flex-col border-r bg-white dark:bg-gray-800">
+        <div className="flex h-16 items-center border-b px-6">
+          <Link href="/dashboard" className="text-xl font-bold">
+            Playgram
+          </Link>
+        </div>
+        <div className="flex flex-col flex-1">
+          <NavContent pathname={pathname} user={user} />
+        </div>
+      </div>
+    </>
   )
 }

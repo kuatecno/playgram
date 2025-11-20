@@ -278,15 +278,15 @@ export default function ContactsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Contacts</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Contacts</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Manage your Instagram and Manychat contacts
           </p>
         </div>
-        <Button onClick={exportToCSV} disabled={loading || contacts.length === 0}>
+        <Button onClick={exportToCSV} disabled={loading || contacts.length === 0} className="w-full sm:w-auto">
           <Download className="mr-2 h-4 w-4" />
           Export to CSV
         </Button>
@@ -355,7 +355,7 @@ export default function ContactsPage() {
           <CardTitle>Search & Filter</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -371,22 +371,25 @@ export default function ContactsPage() {
               <Button
                 variant={filter === 'all' ? 'default' : 'outline'}
                 onClick={() => setFilter('all')}
+                className="flex-1 sm:flex-none"
               >
                 All
               </Button>
               <Button
                 variant={filter === 'subscribed' ? 'default' : 'outline'}
                 onClick={() => setFilter('subscribed')}
+                className="flex-1 sm:flex-none"
               >
-                <UserCheck className="mr-2 h-4 w-4" />
-                Subscribed
+                <UserCheck className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Subscribed</span>
               </Button>
               <Button
                 variant={filter === 'unsubscribed' ? 'default' : 'outline'}
                 onClick={() => setFilter('unsubscribed')}
+                className="flex-1 sm:flex-none"
               >
-                <UserX className="mr-2 h-4 w-4" />
-                Unsubscribed
+                <UserX className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Unsubscribed</span>
               </Button>
             </div>
           </div>
@@ -413,43 +416,43 @@ export default function ContactsPage() {
           {contacts.map((contact) => (
             <Card key={contact.id}>
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-3 sm:gap-4">
                     {contact.profilePic ? (
                       <img
                         src={contact.profilePic}
                         alt={contact.fullName}
-                        className="h-12 w-12 rounded-full object-cover"
+                        className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                        <Users className="h-6 w-6 text-primary" />
+                      <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-primary/10">
+                        <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                       </div>
                     )}
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-lg">{contact.fullName}</CardTitle>
-                        <Badge variant={contact.isSubscribed ? 'default' : 'secondary'}>
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+                        <CardTitle className="text-base sm:text-lg truncate">{contact.fullName}</CardTitle>
+                        <Badge variant={contact.isSubscribed ? 'default' : 'secondary'} className="self-start">
                           {contact.isSubscribed ? 'Subscribed' : 'Unsubscribed'}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                         {contact.instagramUsername && (
                           <div className="flex items-center gap-1">
                             <Instagram className="h-3 w-3" />
-                            @{contact.instagramUsername}
+                            <span className="truncate">@{contact.instagramUsername}</span>
                           </div>
                         )}
                         {contact.manychatId && (
                           <div className="flex items-center gap-1">
                             <MessageCircle className="h-3 w-3" />
-                            Manychat ID: {contact.manychatId.substring(0, 10)}...
+                            <span className="truncate">Manychat ID: {contact.manychatId.substring(0, 10)}...</span>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
-                  <div className="text-right text-sm text-muted-foreground">
+                  <div className="text-left sm:text-right text-xs sm:text-sm text-muted-foreground">
                     <p>Last seen: {formatDate(contact.lastInteraction)}</p>
                     <p className="text-xs">Joined: {new Date(contact.createdAt).toLocaleDateString()}</p>
                   </div>
@@ -487,23 +490,23 @@ export default function ContactsPage() {
                   )}
 
                   {/* Stats */}
-                  <div className="flex items-center gap-6 rounded-lg border p-3">
+                  <div className="grid grid-cols-3 gap-3 sm:flex sm:items-center sm:gap-6 rounded-lg border p-3">
                     <div>
                       <p className="text-xs text-muted-foreground">Bookings</p>
-                      <p className="text-lg font-bold">{contact.stats.bookings}</p>
+                      <p className="text-base sm:text-lg font-bold">{contact.stats.bookings}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">QR Scans</p>
-                      <p className="text-lg font-bold">{contact.stats.qrScans}</p>
+                      <p className="text-base sm:text-lg font-bold">{contact.stats.qrScans}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Conversations</p>
-                      <p className="text-lg font-bold">{contact.stats.conversations}</p>
+                      <p className="text-xs text-muted-foreground">Chats</p>
+                      <p className="text-base sm:text-lg font-bold">{contact.stats.conversations}</p>
                     </div>
                     {contact.followerCount && (
-                      <div>
+                      <div className="col-span-3 sm:col-span-1">
                         <p className="text-xs text-muted-foreground">Followers</p>
-                        <p className="text-lg font-bold">{contact.followerCount.toLocaleString()}</p>
+                        <p className="text-base sm:text-lg font-bold">{contact.followerCount.toLocaleString()}</p>
                       </div>
                     )}
                   </div>
@@ -530,11 +533,11 @@ export default function ContactsPage() {
       {!loading && contacts.length > 0 && totalPages > 1 && (
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
                 Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalContacts)} of {totalContacts} contacts
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"

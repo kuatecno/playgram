@@ -50,11 +50,15 @@ export default function QRScannerPage() {
   useEffect(() => {
     // Initialize scanner only if we are in scanning mode and haven't initialized yet
     if (scanning && !scannerRef.current && cameraStarted) {
+      // Calculate responsive qrbox size based on screen width
+      const screenWidth = window.innerWidth
+      const qrboxSize = Math.min(250, screenWidth * 0.7)
+
       const scanner = new Html5QrcodeScanner(
         "reader",
-        { 
-          fps: 10, 
-          qrbox: { width: 250, height: 250 },
+        {
+          fps: 10,
+          qrbox: { width: qrboxSize, height: qrboxSize },
           formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
           aspectRatio: 1.0,
           showTorchButtonIfSupported: true,
@@ -235,16 +239,16 @@ export default function QRScannerPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="space-y-4 sm:space-y-6 max-w-3xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
             <Button variant="ghost" size="sm" asChild>
                 <Link href="/engagement/qr-tools">
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Link>
             </Button>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Camera className="h-6 w-6" /> QR Scanner
+            <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Camera className="h-5 w-5 sm:h-6 sm:w-6" /> QR Scanner
             </h1>
         </div>
       </div>
