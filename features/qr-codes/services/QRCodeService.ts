@@ -75,6 +75,30 @@ export class QRCodeService {
     // Get config for the tool (ensure it exists)
     const config = await qrToolConfigService.ensureConfigForTool(toolId)
 
+    // Resolve user if provided
+    let resolvedUserId: string | undefined = undefined
+    
+    if (userId) {
+      // Check if it looks like a UUID (simple check)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+      
+      if (isUuid) {
+        resolvedUserId = userId
+      } else {
+        // Try to find user by ManyChat ID
+        const user = await db.user.findFirst({
+          where: { manychatId: userId }
+        })
+        
+        if (user) {
+          resolvedUserId = user.id
+        } else {
+          console.warn(`Could not find user with ManyChat ID: ${userId}`)
+          // Ideally we might want to create a user here, or just proceed without linking
+        }
+      }
+    }
+
     // Generate QR code based on tool-level config
     let code: string
 
@@ -82,8 +106,8 @@ export class QRCodeService {
       const qrFormat = config?.formatPattern || null
 
       // If custom format is defined and userId is provided, use format resolver
-      if (qrFormat && userId) {
-        const userData = await fetchUserDataForQR(userId)
+      if (qrFormat && resolvedUserId) {
+        const userData = await fetchUserDataForQR(resolvedUserId)
         userData.metadata = data.metadata
         code = resolveQRCodeFormat(qrFormat, userData)
       } else if (qrFormat) {
@@ -116,6 +140,7 @@ export class QRCodeService {
             metadata: qrMetadata,
             scanCount: 0,
             expiresAt: data.validUntil || null,
+            userId: resolvedUserId,
           },
           select: {
             id: true,
