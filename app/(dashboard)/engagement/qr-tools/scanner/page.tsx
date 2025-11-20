@@ -43,6 +43,7 @@ export default function QRScannerPage() {
   const [validationResult, setValidationResult] = useState<any | null>(null)
   const [manualCode, setManualCode] = useState('')
   const [showManualEntry, setShowManualEntry] = useState(false)
+  const [rawScannedData, setRawScannedData] = useState<string | null>(null)
   
   const scannerRef = useRef<Html5QrcodeScanner | null>(null)
   const { toast } = useToast()
@@ -116,6 +117,7 @@ export default function QRScannerPage() {
     }
 
     console.log(`Scanned code: ${code}`)
+    setRawScannedData(code)
 
     try {
       const res = await fetch(`/api/v1/qr/lookup/${code}`)
@@ -195,6 +197,7 @@ export default function QRScannerPage() {
     setScanResult(null)
     setValidationResult(null)
     setManualCode('')
+    setRawScannedData(null)
     setShowManualEntry(false)
     setScanning(false)
     setCameraStarted(false)
@@ -361,6 +364,12 @@ export default function QRScannerPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {rawScannedData && (
+              <div className="p-3 bg-muted rounded-md text-sm break-all">
+                <span className="font-mono text-xs text-muted-foreground block mb-1">Raw Code Data</span>
+                {rawScannedData}
+              </div>
+            )}
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Campaign / Tool</span>
