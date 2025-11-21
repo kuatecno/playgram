@@ -16,6 +16,14 @@ model QRToolConfig {
   metadata             Json?
   scannerInstructions  String?  // Custom instructions shown before scanning
   displayFields        Json?    // Array of field names to parse and display
+
+  // Recurring campaign settings
+  isRecurring          Boolean  @default(false) // Enable recurring QR generation
+  maxCodesPerUser      Int?     // Max codes per user (null = infinite)
+  rewardThreshold      Int?     // Scans needed for reward (e.g., 7 for coffee card)
+  autoResetOnReward    Boolean  @default(true)  // Reset progress after reward
+  recurringConfig      Json?    // Additional recurring settings
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -103,6 +111,7 @@ model User {
   snapshots           UserSnapshot[]
   instagramVerifications InstagramVerification[]
   qrSyncLogs          QRSyncLog[]
+  qrCampaignProgress  QRCampaignProgress[]
   dataSharingPreferences UserDataSharingPreferences?
 
   @@index([manychatId])
@@ -200,13 +209,14 @@ model Tool {
   updatedAt       DateTime @updatedAt
 
   // Relations
-  admin           Admin                  @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  qrCodes         QRCode[]
-  bookings        Booking[]
-  availabilities  Availability[]
-  conversations   Conversation[]
-  dynamicGalleries DynamicGalleryConfig[]
-  qrConfig        QRToolConfig?
+  admin             Admin                  @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  qrCodes           QRCode[]
+  bookings          Booking[]
+  availabilities    Availability[]
+  conversations     Conversation[]
+  dynamicGalleries  DynamicGalleryConfig[]
+  qrConfig          QRToolConfig?
+  qrCampaignProgress QRCampaignProgress[]
 
   @@index([adminId])
   @@index([toolType])
@@ -363,20 +373,32 @@ model QRCode {
   expiresAt  DateTime?
   scannedAt  DateTime?
   scanCount  Int       @default(0)
+
+  // Recurring campaign fields
+  isRecurring       Boolean  @default(false) // Part of recurring campaign
+  previousCodeId    String?  // Link to previous code in chain
+  nextCodeId        String?  // Link to next generated code
+  campaignProgress  Int      @default(0)     // User's progress when this code was generated
+  isRewardCode      Boolean  @default(false) // This code represents a reward redemption
+
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
   // Relations
-  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  tool      Tool          @relation(fields: [toolId], references: [id], onDelete: Cascade)
-  analytics QRAnalytics[]
-  syncLogs  QRSyncLog[]
+  user          User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tool          Tool             @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  analytics     QRAnalytics[]
+  syncLogs      QRSyncLog[]
+  previousCode  QRCode?          @relation("QRCodeChain", fields: [previousCodeId], references: [id])
+  nextCodes     QRCode[]         @relation("QRCodeChain")
 
   @@index([code])
   @@index([userId])
   @@index([toolId])
   @@index([qrType])
   @@index([createdAt])
+  @@index([isRecurring])
+  @@index([previousCodeId])
 }
 
 model QRAnalytics {
@@ -416,6 +438,31 @@ model QRSyncLog {
   @@index([trigger])
   @@index([success])
   @@index([timestamp])
+}
+
+model QRCampaignProgress {
+  id               String   @id @default(cuid())
+  userId           String
+  toolId           String
+  totalScans       Int      @default(0)    // Total scans across all codes
+  currentStreak    Int      @default(0)    // Current progress toward next reward
+  rewardsEarned    Int      @default(0)    // Total rewards earned
+  lastCodeId       String?  // Most recent code in chain
+  lastScanAt       DateTime?
+  isActive         Boolean  @default(true) // Whether user can still participate
+  metadata         Json?    // Custom campaign data
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tool Tool @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, toolId])
+  @@index([userId])
+  @@index([toolId])
+  @@index([isActive])
+  @@index([lastScanAt])
 }
 
 // ============================================================================
