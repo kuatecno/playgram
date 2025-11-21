@@ -19,17 +19,18 @@ export async function GET(
     const { toolId } = await params
 
     // Fetch tool with config
-    const tool = await db.qRTool.findUnique({
+    const tool = await db.tool.findFirst({
       where: {
         id: toolId,
-        userId: user.id,
+        adminId: user.id,
+        toolType: 'qr',
       },
       select: {
         id: true,
         name: true,
         description: true,
-        type: true,
-        config: {
+        toolType: true,
+        qrConfig: {
           select: {
             formatPattern: true,
             scannerInstructions: true,
@@ -52,10 +53,10 @@ export async function GET(
         id: tool.id,
         name: tool.name,
         description: tool.description,
-        type: tool.type,
-        formatPattern: tool.config?.formatPattern || null,
-        scannerInstructions: tool.config?.scannerInstructions || null,
-        displayFields: tool.config?.displayFields || null,
+        type: tool.toolType,
+        formatPattern: tool.qrConfig?.formatPattern || null,
+        scannerInstructions: tool.qrConfig?.scannerInstructions || null,
+        displayFields: tool.qrConfig?.displayFields || null,
       },
     })
   } catch (error) {
