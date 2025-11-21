@@ -59,11 +59,20 @@ export class DynamicGalleryService {
       })
     }
 
-    const config = await db.dynamicGalleryConfig.upsert({
+    // Find the first gallery config for this tool, or create a default one
+    let config = await db.dynamicGalleryConfig.findFirst({
       where: { toolId: tool.id },
-      update: {},
-      create: { toolId: tool.id },
+      orderBy: { createdAt: 'asc' },
     })
+
+    if (!config) {
+      config = await db.dynamicGalleryConfig.create({
+        data: {
+          toolId: tool.id,
+          name: 'Default Gallery',
+        },
+      })
+    }
 
     return { tool, config }
   }
@@ -161,9 +170,11 @@ export class DynamicGalleryService {
   }
 
   async storeCardsForTool(toolId: string, cards: DynamicGalleryCardList, trigger: 'manual' | 'webhook') {
-    const config = await db.dynamicGalleryConfig.findUnique({
+    // Find the first gallery config for this tool (for backward compatibility)
+    const config = await db.dynamicGalleryConfig.findFirst({
       where: { toolId },
       select: { id: true },
+      orderBy: { createdAt: 'asc' },
     })
 
     if (!config) {
@@ -738,7 +749,7 @@ export class DynamicGalleryService {
         configId: galleryId,
         triggerType,
         triggerKey,
-        metadata: metadata || null,
+        metadata: metadata ? (metadata as any) : undefined,
       },
     })
 

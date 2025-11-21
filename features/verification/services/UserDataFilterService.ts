@@ -165,7 +165,7 @@ export async function updateUserDataSharingPreferences(
       shareFollowerCount: preferences.shareFollowerCount ?? false,
       shareEmail: preferences.shareEmail ?? false,
       sharePhone: preferences.sharePhone ?? false,
-      shareCustomFields: preferences.shareCustomFields ? JSON.stringify(preferences.shareCustomFields) : null,
+      shareCustomFields: preferences.shareCustomFields ? JSON.stringify(preferences.shareCustomFields) : undefined,
     },
     update: {
       shareFirstName: preferences.shareFirstName,
@@ -176,7 +176,7 @@ export async function updateUserDataSharingPreferences(
       shareFollowerCount: preferences.shareFollowerCount,
       shareEmail: preferences.shareEmail,
       sharePhone: preferences.sharePhone,
-      shareCustomFields: preferences.shareCustomFields ? JSON.stringify(preferences.shareCustomFields) : null,
+      shareCustomFields: preferences.shareCustomFields ? JSON.stringify(preferences.shareCustomFields) : undefined,
     },
   })
 }

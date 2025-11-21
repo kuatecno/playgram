@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiResponse } from '@/lib/utils/api-response'
 import { z } from 'zod'
