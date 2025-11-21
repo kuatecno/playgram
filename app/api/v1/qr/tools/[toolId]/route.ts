@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth/session'
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ toolId: string }> }
 ) {
   try {
