@@ -103,10 +103,38 @@ model User {
   snapshots           UserSnapshot[]
   instagramVerifications InstagramVerification[]
   qrSyncLogs          QRSyncLog[]
+  dataSharingPreferences UserDataSharingPreferences?
 
   @@index([manychatId])
   @@index([igUsername])
   @@index([createdAt])
+}
+
+model UserDataSharingPreferences {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  
+  // Profile data sharing preferences
+  shareFirstName     Boolean @default(false)
+  shareLastName      Boolean @default(false)
+  shareFullName       Boolean @default(false)
+  shareProfilePic     Boolean @default(false)
+  shareIgUsername     Boolean @default(true)  // Username is usually safe to share
+  shareFollowerCount  Boolean @default(false)
+  shareEmail          Boolean @default(false)
+  sharePhone          Boolean @default(false)
+  
+  // Custom fields sharing (JSON object: { "fieldName": true/false })
+  shareCustomFields   Json?   // { "field_name": true, "another_field": false }
+  
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
 }
 
 model Tag {

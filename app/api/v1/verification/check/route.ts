@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiResponse } from '@/lib/utils/api-response'
+import { filterUserDataForSharing } from '@/features/verification/services/UserDataFilterService'
 
 /**
  * GET /api/v1/verification/check?session=<sessionId>
@@ -84,9 +85,46 @@ export async function GET(request: NextRequest) {
 
     // Add verification details if verified
     if (verification.status === 'verified') {
-      response.ig_username = verification.igUsername
-      response.instagram_id = verification.instagramId
-      response.manychat_user_id = verification.manychatUserId
+      // Get user data with filtering
+      if (verification.manychatUserId) {
+        const user = await db.user.findUnique({
+          where: { manychatId: verification.manychatUserId },
+          include: {
+            customFieldValues: {
+              include: {
+                field: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        })
+
+        if (user) {
+          const filteredUserData = await filterUserDataForSharing(
+            user.id,
+            {
+              firstName: user.firstName,
+              lastName: user.lastName,
+              profilePicUrl: user.profilePicUrl,
+              igUsername: user.igUsername,
+              followerCount: user.followerCount,
+              manychatId: user.manychatId,
+              customFieldValues: user.customFieldValues,
+            },
+            {
+              instagram_id: verification.instagramId || undefined,
+              manychat_user_id: verification.manychatUserId || undefined,
+            }
+          )
+
+          response.user = filteredUserData
+        }
+      }
+
+      // Always include basic verification info
       response.verified_at = verification.verifiedAt?.toISOString()
       response.external_user_id = verification.externalUserId
       response.metadata = verification.metadata

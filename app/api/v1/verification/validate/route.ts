@@ -4,6 +4,7 @@ import { z } from 'zod'
 import {
   verificationService,
 } from '@/features/verification/services/VerificationService'
+import { filterUserDataForSharing } from '@/features/verification/services/UserDataFilterService'
 
 const ValidateVerificationSchema = z.object({
   code: z.string().min(1),
@@ -119,6 +120,17 @@ export async function POST(request: NextRequest) {
     // Find or create user
     let user = await db.user.findUnique({
       where: { manychatId: validated.manychat_user_id },
+      include: {
+        customFieldValues: {
+          include: {
+            field: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
     })
 
     if (!user) {
@@ -133,6 +145,17 @@ export async function POST(request: NextRequest) {
           profilePicUrl: validated.subscriber_data?.profile_pic,
           isSubscribed: true,
         },
+        include: {
+          customFieldValues: {
+            include: {
+              field: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
       })
     } else {
       // Update existing user with latest Instagram info
@@ -144,6 +167,17 @@ export async function POST(request: NextRequest) {
           lastName: validated.subscriber_data?.last_name || user.lastName,
           profilePicUrl: validated.subscriber_data?.profile_pic || user.profilePicUrl,
           isSubscribed: true,
+        },
+        include: {
+          customFieldValues: {
+            include: {
+              field: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
         },
       })
     }
@@ -175,23 +209,36 @@ export async function POST(request: NextRequest) {
 
     // Send webhook notification to external site if configured
     if (verification.webhookUrl) {
+      // Filter user data based on their sharing preferences
+      const filteredUserData = await filterUserDataForSharing(
+        user.id,
+        {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profilePicUrl: user.profilePicUrl,
+          igUsername: user.igUsername,
+          followerCount: user.followerCount,
+          manychatId: user.manychatId,
+          customFieldValues: user.customFieldValues,
+        },
+        {
+          instagram_id: validated.instagram_id,
+          manychat_user_id: validated.manychat_user_id,
+          email: validated.subscriber_data?.email,
+          phone: validated.subscriber_data?.phone,
+        }
+      )
+
       const webhookPayload = {
         event: 'verification.success',
         verification_id: updatedVerification.id,
         code: updatedVerification.code,
         external_website: verification.externalWebsite,
         external_user_id: verification.externalUserId,
-        ig_username: validated.ig_username,
-        instagram_id: validated.instagram_id,
-        manychat_user_id: validated.manychat_user_id,
-        user: {
-          first_name: user.firstName,
-          last_name: user.lastName,
-          full_name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-          profile_pic: user.profilePicUrl,
-        },
         verified_at: updatedVerification.verifiedAt?.toISOString(),
         metadata: verification.metadata ? JSON.parse(verification.metadata) : null,
+        // Include only filtered user data
+        user: filteredUserData,
       }
 
       // Send webhook in background (don't wait for response)

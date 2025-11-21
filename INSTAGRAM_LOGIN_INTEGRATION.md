@@ -197,22 +197,27 @@ Instead of polling, you can configure a webhook to receive instant notifications
   "code": "X7K-73-ABC",
   "external_website": "example.com",
   "external_user_id": "user_12345",
-  "ig_username": "johndoe",
-  "instagram_id": "123456789",
-  "manychat_user_id": "987654321",
-  "user": {
-    "first_name": "John",
-    "last_name": "Doe",
-    "full_name": "John Doe",
-    "profile_pic": "https://instagram.com/pic.jpg"
-  },
   "verified_at": "2025-01-15T10:15:30Z",
   "metadata": {
     "session_id": "abc123",
     "redirect_url": "/dashboard"
+  },
+  "user": {
+    "ig_username": "johndoe",
+    "instagram_id": "123456789",
+    "manychat_user_id": "987654321",
+    "first_name": "John",
+    "last_name": "Doe",
+    "full_name": "John Doe",
+    "profile_pic": "https://instagram.com/pic.jpg",
+    "custom_fields": {
+      "favorite_color": "blue"
+    }
   }
 }
 ```
+
+**Note:** The `user` object only contains fields that the user has explicitly allowed to share. If a user hasn't enabled sharing for a field, it will not appear in the payload. Always check for field existence before using it.
 
 **Webhook Security:**
 If you provided a `callback_token` when generating the code, Playgram will include it in the webhook request headers:
@@ -232,16 +237,21 @@ app.post('/webhooks/instagram-verify', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   
-  const { event, external_user_id, ig_username, user, metadata } = req.body;
+  const { event, external_user_id, user, metadata } = req.body;
   
   if (event === 'verification.success') {
-    // Log user in
+    // Log user in with filtered user data
+    // Note: Only fields the user allowed will be present
     const session = await createUserSession({
-      instagram_username: ig_username,
-      instagram_id: req.body.instagram_id,
+      instagram_username: user.ig_username,
+      instagram_id: user.instagram_id,
+      manychat_user_id: user.manychat_user_id,
+      // These may be undefined if user didn't allow sharing
       first_name: user.first_name,
       last_name: user.last_name,
-      profile_pic: user.profile_pic
+      full_name: user.full_name,
+      profile_pic: user.profile_pic,
+      custom_fields: user.custom_fields || {}
     });
     
     // Redirect user if metadata contains redirect_url
@@ -336,12 +346,86 @@ The prefix is randomized for each code to prevent guessing attacks.
 
 ## User Data Available
 
-After verification, you receive:
-- **Instagram Username** (`ig_username`)
-- **Instagram Platform ID** (`instagram_id`)
-- **ManyChat Subscriber ID** (`manychat_user_id`)
-- **User Profile** (first name, last name, profile picture)
-- **Verification timestamp** (`verified_at`)
+After verification, you receive user data **based on the user's sharing preferences**. By default, only the Instagram username is shared. Users can control what data they share through their preferences.
+
+### Available Data Fields
+
+- **Instagram Username** (`ig_username`) - Always shared by default
+- **Instagram Platform ID** (`instagram_id`) - Always shared (needed for verification)
+- **ManyChat Subscriber ID** (`manychat_user_id`) - Always shared (needed for verification)
+- **First Name** (`first_name`) - Only if user enabled sharing
+- **Last Name** (`last_name`) - Only if user enabled sharing
+- **Full Name** (`full_name`) - Only if user enabled sharing
+- **Profile Picture** (`profile_pic`) - Only if user enabled sharing
+- **Follower Count** (`follower_count`) - Only if user enabled sharing
+- **Email** (`email`) - Only if user enabled sharing and available
+- **Phone** (`phone`) - Only if user enabled sharing and available
+- **Custom Fields** (`custom_fields`) - Only fields the user has explicitly allowed
+
+### User Data Sharing Preferences
+
+Users can control what data is shared with external websites through their data sharing preferences. By default, only the Instagram username is shared. Users can update their preferences via:
+
+**API Endpoint:** `POST /api/v1/user/data-sharing-preferences`
+
+**Request Body:**
+```json
+{
+  "manychat_user_id": "123456789",
+  "preferences": {
+    "shareFirstName": true,
+    "shareLastName": true,
+    "shareFullName": true,
+    "shareProfilePic": true,
+    "shareIgUsername": true,
+    "shareFollowerCount": false,
+    "shareEmail": false,
+    "sharePhone": false,
+    "shareCustomFields": {
+      "favorite_color": true,
+      "birthday": false
+    }
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Data sharing preferences updated successfully",
+    "preferences": {
+      "shareFirstName": true,
+      "shareLastName": true,
+      "shareFullName": true,
+      "shareProfilePic": true,
+      "shareIgUsername": true,
+      "shareFollowerCount": false,
+      "shareEmail": false,
+      "sharePhone": false,
+      "shareCustomFields": {
+        "favorite_color": true,
+        "birthday": false
+      }
+    }
+  }
+}
+```
+
+**Get Current Preferences:**
+```http
+GET /api/v1/user/data-sharing-preferences?manychat_user_id=123456789
+```
+
+### Privacy-First Approach
+
+This system follows a **privacy-first approach**:
+- Users control exactly what data is shared
+- Default is minimal sharing (username only)
+- Users must explicitly opt-in to share additional data
+- Custom fields can be selectively shared
+- Preferences persist across verifications
 
 ## Example Integration (Full Flow)
 
