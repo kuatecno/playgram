@@ -275,6 +275,14 @@ class QRToolConfigService {
     const rawMetadata = input.metadata !== undefined ? input.metadata : existing.metadata
     const sanitizedMetadata = sanitizeMetadata(rawMetadata)
 
+    // Handle displayFields separately to avoid type issues
+    let displayFieldsValue: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined
+    if (input.displayFields !== undefined) {
+      displayFieldsValue = input.displayFields !== null 
+        ? validateJsonField(input.displayFields, 'displayFields') 
+        : Prisma.JsonNull
+    }
+
     const data: Prisma.QRToolConfigUpdateInput = {
       formatPattern:
         input.formatPattern !== undefined ? input.formatPattern : existing.formatPattern,
@@ -284,9 +292,7 @@ class QRToolConfigService {
       securityPolicy: nextSecurityPolicy !== null ? validateJsonField(nextSecurityPolicy, 'securityPolicy') : Prisma.JsonNull,
       metadata: validateJsonField(sanitizedMetadata, 'metadata'),
       scannerInstructions: input.scannerInstructions !== undefined ? input.scannerInstructions : existing.scannerInstructions,
-      displayFields: input.displayFields !== undefined
-        ? (input.displayFields !== null ? validateJsonField(input.displayFields, 'displayFields') : Prisma.JsonNull)
-        : existing.displayFields,
+      ...(displayFieldsValue !== undefined && { displayFields: displayFieldsValue }),
     }
 
     const updated = await db.qRToolConfig.update({
