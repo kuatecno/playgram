@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/auth/session'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { toolId: string } }
+  { params }: { params: Promise<{ toolId: string }> }
 ) {
   try {
     const user = await getCurrentUser()
@@ -16,7 +16,7 @@ export async function GET(
       )
     }
 
-    const { toolId } = params
+    const { toolId } = await params
 
     // Fetch tool with config
     const tool = await db.qRTool.findUnique({
