@@ -35,6 +35,7 @@ import {
   AlertCircle,
   Trash2,
   Plus,
+  Camera,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -168,6 +169,7 @@ type QrToolSettings = {
   qrAppearance: typeof DEFAULT_APPEARANCE
   fallbackUrl: string | null
   securityPolicy: Record<string, unknown>
+  scannerInstructions: string | null
 }
 
 type QrStats = {
@@ -222,6 +224,9 @@ export default function QrToolConfigPage() {
   const [previewingFormat, setPreviewingFormat] = useState(false)
   const [formatSaving, setFormatSaving] = useState(false)
   const formatTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+
+  const [scannerInstructions, setScannerInstructions] = useState('')
+  const [scannerSaving, setScannerSaving] = useState(false)
 
   const [users, setUsers] = useState<User[]>([])
   const [selectedUserId, setSelectedUserId] = useState<string>('')
@@ -379,12 +384,14 @@ export default function QrToolConfigPage() {
         qrAppearance: data.data.qrAppearance || DEFAULT_APPEARANCE,
         fallbackUrl: data.data.fallbackUrl || '',
         securityPolicy: data.data.securityPolicy || {},
+        scannerInstructions: data.data.scannerInstructions || '',
       }
 
       setFormatPattern(settings.qrFormat)
       setAppearance({ ...DEFAULT_APPEARANCE, ...settings.qrAppearance })
       setFallbackUrl(settings.fallbackUrl || '')
       setSecurityPolicyInput(JSON.stringify(settings.securityPolicy || {}, null, 2))
+      setScannerInstructions(settings.scannerInstructions || '')
     }
   }
 
@@ -569,6 +576,35 @@ export default function QrToolConfigPage() {
       })
     } finally {
       setFormatSaving(false)
+    }
+  }
+
+  async function handleSaveScannerConfig() {
+    setScannerSaving(true)
+    try {
+      const res = await fetch('/api/v1/qr/tool-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toolId,
+          scannerInstructions: scannerInstructions.trim() || null,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast({ title: 'Scanner configuration saved', description: 'Scanner instructions updated.' })
+      } else {
+        throw new Error(data.error || 'Failed to save scanner configuration')
+      }
+    } catch (error) {
+      toast({
+        title: 'Failed to save configuration',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setScannerSaving(false)
     }
   }
 
@@ -978,14 +1014,21 @@ export default function QrToolConfigPage() {
             )}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-          onClick={() => setShowDeleteDialog(true)}
-        >
-          <Trash2 className="mr-2 h-4 w-4" /> Delete
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm">
+            <Link href={`/engagement/qr-tools/${toolId}/scan`}>
+              <Camera className="mr-2 h-4 w-4" /> Open Scanner
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          </Button>
+        </div>
       </div>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -1300,6 +1343,35 @@ export default function QrToolConfigPage() {
                   Save format
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Scanner Configuration</CardTitle>
+              <CardDescription>
+                Configure how the scanner displays and processes QR codes for this tool
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="scannerInstructions">Scanner Instructions (Optional)</Label>
+                <Textarea
+                  id="scannerInstructions"
+                  placeholder="e.g., 'Verify customer ID before scanning' or 'Present this code to staff member'"
+                  value={scannerInstructions}
+                  onChange={(e) => setScannerInstructions(e.target.value)}
+                  rows={3}
+                />
+                <p className="text-xs text-muted-foreground">
+                  These instructions will be shown to users before they start scanning
+                </p>
+              </div>
+
+              <Button onClick={handleSaveScannerConfig} disabled={scannerSaving}>
+                {scannerSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save Scanner Configuration
+              </Button>
             </CardContent>
           </Card>
 

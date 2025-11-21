@@ -74,6 +74,8 @@ export interface UpdateQRToolConfigInput {
   fieldMappings?: QRFieldMappingConfigData | null
   securityPolicy?: QRToolSecurityPolicy | null
   metadata?: Record<string, unknown> | null
+  scannerInstructions?: string | null
+  displayFields?: string[] | null
 }
 
 export const DEFAULT_QR_APPEARANCE: Required<QRAppearanceSettings> = {
@@ -281,6 +283,10 @@ class QRToolConfigService {
       fieldMappings: nextFieldMappings !== null ? validateJsonField(nextFieldMappings, 'fieldMappings') : Prisma.JsonNull,
       securityPolicy: nextSecurityPolicy !== null ? validateJsonField(nextSecurityPolicy, 'securityPolicy') : Prisma.JsonNull,
       metadata: validateJsonField(sanitizedMetadata, 'metadata'),
+      scannerInstructions: input.scannerInstructions !== undefined ? input.scannerInstructions : existing.scannerInstructions,
+      displayFields: input.displayFields !== undefined
+        ? (input.displayFields !== null ? validateJsonField(input.displayFields, 'displayFields') : Prisma.JsonNull)
+        : existing.displayFields,
     }
 
     const updated = await db.qRToolConfig.update({

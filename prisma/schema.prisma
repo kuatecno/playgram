@@ -6,16 +6,18 @@ generator client {
 }
 
 model QRToolConfig {
-  id              String   @id @default(cuid())
-  toolId          String   @unique
-  formatPattern   String?
-  fallbackUrl     String?
-  appearance      Json?
-  fieldMappings   Json?
-  securityPolicy  Json?
-  metadata        Json?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  toolId               String   @unique
+  formatPattern        String?
+  fallbackUrl          String?
+  appearance           Json?
+  fieldMappings        Json?
+  securityPolicy       Json?
+  metadata             Json?
+  scannerInstructions  String?  // Custom instructions shown before scanning
+  displayFields        Json?    // Array of field names to parse and display
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   tool Tool @relation(fields: [toolId], references: [id], onDelete: Cascade)
 }

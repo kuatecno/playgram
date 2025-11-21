@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
         qrAppearance: appearance || DEFAULT_QR_APPEARANCE,
         fallbackUrl: config.fallbackUrl || null,
         securityPolicy: config.securityPolicy || {},
+        scannerInstructions: config.scannerInstructions || null,
       },
     })
   } catch (error: any) {
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     const user = await requireAuth()
 
     const body = await req.json()
-    const { toolId, qrFormat, qrAppearance, fallbackUrl, securityPolicy } = body
+    const { toolId, qrFormat, qrAppearance, fallbackUrl, securityPolicy, scannerInstructions } = body
 
     if (!toolId) {
       return NextResponse.json({ error: 'toolId is required' }, { status: 400 })
@@ -115,6 +116,10 @@ export async function POST(req: NextRequest) {
       updateInput.securityPolicy = securityPolicy || {}
     }
 
+    if (scannerInstructions !== undefined) {
+      updateInput.scannerInstructions = scannerInstructions || null
+    }
+
     const updated = await qrToolConfigService.updateConfig(toolId, updateInput)
     const appearance = qrToolConfigService.getAppearance(updated)
 
@@ -126,6 +131,7 @@ export async function POST(req: NextRequest) {
         qrAppearance: appearance,
         fallbackUrl: updated.fallbackUrl || null,
         securityPolicy: updated.securityPolicy || {},
+        scannerInstructions: updated.scannerInstructions || null,
       },
     })
   } catch (error: any) {
