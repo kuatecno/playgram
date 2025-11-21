@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db/prisma'
+import { db } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth/session'
 
 export async function GET(
@@ -19,7 +19,7 @@ export async function GET(
     const { toolId } = params
 
     // Fetch tool with config
-    const tool = await prisma.qRTool.findUnique({
+    const tool = await db.qRTool.findUnique({
       where: {
         id: toolId,
         userId: user.id,
