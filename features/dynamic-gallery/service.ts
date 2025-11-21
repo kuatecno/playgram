@@ -451,6 +451,366 @@ export class DynamicGalleryService {
 
     return contactIds
   }
+
+  // =========================================================================
+  // MULTIPLE GALLERIES CRUD OPERATIONS
+  // =========================================================================
+
+  /**
+   * Create a new gallery for an admin
+   */
+  async createGallery(adminId: string, name: string, displayOrder?: number) {
+    // First, ensure we have a tool for dynamic galleries
+    let tool = await db.tool.findFirst({
+      where: {
+        adminId,
+        toolType: 'dynamic_gallery',
+      },
+    })
+
+    if (!tool) {
+      tool = await db.tool.create({
+        data: {
+          adminId,
+          toolType: 'dynamic_gallery',
+          name: 'Dynamic Galleries',
+          description: 'Manage multiple ManyChat gallery sets',
+          settings: {},
+          isActive: true,
+        },
+      })
+    }
+
+    // Create the gallery config
+    const config = await db.dynamicGalleryConfig.create({
+      data: {
+        toolId: tool.id,
+        name,
+        displayOrder,
+      },
+    })
+
+    return {
+      id: config.id,
+      toolId: tool.id,
+      name: config.name,
+      displayOrder: config.displayOrder,
+      autoSyncEnabled: config.autoSyncEnabled,
+      ingestMode: config.ingestMode,
+      createdAt: config.createdAt,
+      updatedAt: config.updatedAt,
+    }
+  }
+
+  /**
+   * List all galleries for an admin
+   */
+  async listGalleries(adminId: string) {
+    const tools = await db.tool.findMany({
+      where: {
+        adminId,
+        toolType: 'dynamic_gallery',
+      },
+      include: {
+        dynamicGalleries: {
+          orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+          include: {
+            snapshots: {
+              orderBy: { version: 'desc' },
+              take: 1,
+            },
+            triggers: {
+              where: { isActive: true },
+            },
+            _count: {
+              select: {
+                snapshots: true,
+                sources: true,
+                syncLogs: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    const galleries = tools.flatMap((tool) =>
+      tool.dynamicGalleries.map((config) => ({
+        id: config.id,
+        toolId: tool.id,
+        name: config.name,
+        displayOrder: config.displayOrder,
+        autoSyncEnabled: config.autoSyncEnabled,
+        ingestMode: config.ingestMode,
+        lastSyncedAt: config.lastSyncedAt?.toISOString() || null,
+        lastSyncStatus: config.lastSyncStatus,
+        cardCount: config.snapshots[0]?.cardCount || 0,
+        version: config.snapshots[0]?.version || 0,
+        triggers: config.triggers.map((t) => ({
+          id: t.id,
+          triggerType: t.triggerType,
+          triggerKey: t.triggerKey,
+        })),
+        stats: {
+          snapshotCount: config._count.snapshots,
+          sourceCount: config._count.sources,
+          syncLogCount: config._count.syncLogs,
+        },
+        createdAt: config.createdAt.toISOString(),
+        updatedAt: config.updatedAt.toISOString(),
+      }))
+    )
+
+    return galleries
+  }
+
+  /**
+   * Get a specific gallery by ID
+   */
+  async getGalleryById(galleryId: string, adminId: string) {
+    const config = await db.dynamicGalleryConfig.findFirst({
+      where: {
+        id: galleryId,
+        tool: { adminId },
+      },
+      include: {
+        tool: true,
+        snapshots: {
+          orderBy: { version: 'desc' },
+          take: 1,
+        },
+        sources: {
+          orderBy: { createdAt: 'desc' },
+        },
+        secrets: {
+          where: { revokedAt: null },
+          orderBy: { createdAt: 'desc' },
+        },
+        triggers: {
+          where: { isActive: true },
+          orderBy: { createdAt: 'desc' },
+        },
+        syncLogs: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        },
+      },
+    })
+
+    if (!config) {
+      return null
+    }
+
+    return {
+      id: config.id,
+      toolId: config.toolId,
+      name: config.name,
+      displayOrder: config.displayOrder,
+      autoSyncEnabled: config.autoSyncEnabled,
+      ingestMode: config.ingestMode,
+      snapshot: config.snapshots[0]
+        ? {
+            id: config.snapshots[0].id,
+            version: config.snapshots[0].version,
+            cardCount: config.snapshots[0].cardCount,
+            cards: config.snapshots[0].cardsJson,
+            hash: config.snapshots[0].hash,
+            createdAt: config.snapshots[0].createdAt.toISOString(),
+          }
+        : null,
+      sources: config.sources.map((s) => ({
+        id: s.id,
+        name: s.name,
+        sourceType: s.sourceType,
+        endpoint: s.endpoint,
+        isActive: s.isActive,
+        createdAt: s.createdAt.toISOString(),
+      })),
+      secrets: config.secrets.map((s) => ({
+        id: s.id,
+        label: s.label,
+        createdAt: s.createdAt.toISOString(),
+        lastUsedAt: s.lastUsedAt?.toISOString() || null,
+      })),
+      triggers: config.triggers.map((t) => ({
+        id: t.id,
+        triggerType: t.triggerType,
+        triggerKey: t.triggerKey,
+        metadata: t.metadata,
+        createdAt: t.createdAt.toISOString(),
+      })),
+      syncLogs: config.syncLogs.map((log) => ({
+        id: log.id,
+        triggerType: log.triggerType,
+        status: log.status,
+        cardCount: log.cardCount,
+        contactsImpacted: log.contactsImpacted,
+        durationMs: log.durationMs,
+        errorMessage: log.errorMessage,
+        createdAt: log.createdAt.toISOString(),
+      })),
+      lastSyncedAt: config.lastSyncedAt?.toISOString() || null,
+      lastSyncStatus: config.lastSyncStatus,
+      createdAt: config.createdAt.toISOString(),
+      updatedAt: config.updatedAt.toISOString(),
+    }
+  }
+
+  /**
+   * Update a gallery
+   */
+  async updateGallery(
+    galleryId: string,
+    adminId: string,
+    updates: { name?: string; displayOrder?: number; autoSyncEnabled?: boolean }
+  ) {
+    const config = await db.dynamicGalleryConfig.findFirst({
+      where: {
+        id: galleryId,
+        tool: { adminId },
+      },
+    })
+
+    if (!config) {
+      throw new Error('Gallery not found')
+    }
+
+    const updated = await db.dynamicGalleryConfig.update({
+      where: { id: galleryId },
+      data: updates,
+    })
+
+    return {
+      id: updated.id,
+      toolId: updated.toolId,
+      name: updated.name,
+      displayOrder: updated.displayOrder,
+      autoSyncEnabled: updated.autoSyncEnabled,
+      updatedAt: updated.updatedAt,
+    }
+  }
+
+  /**
+   * Delete a gallery
+   */
+  async deleteGallery(galleryId: string, adminId: string) {
+    const config = await db.dynamicGalleryConfig.findFirst({
+      where: {
+        id: galleryId,
+        tool: { adminId },
+      },
+    })
+
+    if (!config) {
+      throw new Error('Gallery not found')
+    }
+
+    await db.dynamicGalleryConfig.delete({
+      where: { id: galleryId },
+    })
+
+    return { success: true }
+  }
+
+  /**
+   * Add a trigger to a gallery
+   */
+  async addGalleryTrigger(
+    galleryId: string,
+    adminId: string,
+    triggerType: string,
+    triggerKey: string,
+    metadata?: Record<string, unknown>
+  ) {
+    const config = await db.dynamicGalleryConfig.findFirst({
+      where: {
+        id: galleryId,
+        tool: { adminId },
+      },
+    })
+
+    if (!config) {
+      throw new Error('Gallery not found')
+    }
+
+    const trigger = await db.galleryTrigger.create({
+      data: {
+        configId: galleryId,
+        triggerType,
+        triggerKey,
+        metadata: metadata || null,
+      },
+    })
+
+    return {
+      id: trigger.id,
+      triggerType: trigger.triggerType,
+      triggerKey: trigger.triggerKey,
+      metadata: trigger.metadata,
+      createdAt: trigger.createdAt,
+    }
+  }
+
+  /**
+   * Remove a trigger from a gallery
+   */
+  async removeGalleryTrigger(triggerId: string, adminId: string) {
+    const trigger = await db.galleryTrigger.findFirst({
+      where: {
+        id: triggerId,
+        config: {
+          tool: { adminId },
+        },
+      },
+    })
+
+    if (!trigger) {
+      throw new Error('Trigger not found')
+    }
+
+    await db.galleryTrigger.delete({
+      where: { id: triggerId },
+    })
+
+    return { success: true }
+  }
+
+  /**
+   * Find galleries by trigger (e.g., for ManyChat keyword routing)
+   */
+  async getGalleriesByTrigger(adminId: string, triggerType: string, triggerKey: string) {
+    const triggers = await db.galleryTrigger.findMany({
+      where: {
+        triggerType,
+        triggerKey,
+        isActive: true,
+        config: {
+          tool: { adminId },
+        },
+      },
+      include: {
+        config: {
+          include: {
+            snapshots: {
+              orderBy: { version: 'desc' },
+              take: 1,
+            },
+          },
+        },
+      },
+    })
+
+    return triggers.map((trigger) => ({
+      galleryId: trigger.configId,
+      galleryName: trigger.config.name,
+      snapshot: trigger.config.snapshots[0]
+        ? {
+            cards: trigger.config.snapshots[0].cardsJson,
+            version: trigger.config.snapshots[0].version,
+          }
+        : null,
+    }))
+  }
 }
 
 export const dynamicGalleryService = new DynamicGalleryService()

@@ -200,13 +200,13 @@ model Tool {
   updatedAt       DateTime @updatedAt
 
   // Relations
-  admin         Admin          @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  qrCodes       QRCode[]
-  bookings      Booking[]
-  availabilities Availability[]
-  conversations  Conversation[]
-  dynamicGallery DynamicGalleryConfig?
-  qrConfig      QRToolConfig?
+  admin           Admin                  @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  qrCodes         QRCode[]
+  bookings        Booking[]
+  availabilities  Availability[]
+  conversations   Conversation[]
+  dynamicGalleries DynamicGalleryConfig[]
+  qrConfig        QRToolConfig?
 
   @@index([adminId])
   @@index([toolType])
@@ -226,7 +226,9 @@ enum DynamicGalleryIngestMode {
 
 model DynamicGalleryConfig {
   id                  String                      @id @default(cuid())
-  toolId              String                      @unique
+  toolId              String
+  name                String                      @default("Default Gallery") // Gallery name (e.g., "Main Menu", "Events")
+  displayOrder        Int?                        // Order for gallery list UI
   autoSyncEnabled     Boolean                     @default(true)
   ingestMode          DynamicGalleryIngestMode    @default(immediate_top)
   ingestLimit         Int?
@@ -247,8 +249,10 @@ model DynamicGalleryConfig {
   sources   DynamicGallerySource[]
   secrets   DynamicGallerySecret[]
   syncLogs  DynamicGallerySyncLog[]
+  triggers  GalleryTrigger[]
 
   @@index([toolId])
+  @@index([name])
 }
 
 model DynamicGallerySnapshot {
@@ -324,6 +328,25 @@ model DynamicGallerySyncLog {
   @@index([triggerType])
   @@index([status])
   @@index([createdAt])
+}
+
+model GalleryTrigger {
+  id          String   @id @default(cuid())
+  configId    String
+  triggerType String   // manychat_keyword, manychat_flow, webhook, schedule
+  triggerKey  String   // Keyword text (e.g., "MENU", "EVENTS"), flow ID, or schedule ID
+  metadata    Json?    // Additional trigger configuration
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  config DynamicGalleryConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([configId])
+  @@index([triggerType])
+  @@index([triggerKey])
+  @@index([isActive])
 }
 
 // ============================================================================
