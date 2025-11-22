@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { QrCodeManager } from './components/QrCodeManager'
+import CampaignConfig from './components/CampaignConfig'
 import {
   Tabs,
   TabsContent,
@@ -1180,6 +1181,7 @@ export default function QrToolConfigPage() {
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="security">Security & Routing</TabsTrigger>
+          <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -2249,12 +2251,16 @@ export default function QrToolConfigPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="campaigns" className="space-y-6">
+          <CampaignConfig toolId={toolId} />
+        </TabsContent>
+
         <TabsContent value="activity" className="space-y-6">
-          <QrCodeManager 
-            toolId={toolId} 
-            users={users} 
-            loadingUsers={loadingUsers} 
-            formatPattern={formatPattern} 
+          <QrCodeManager
+            toolId={toolId}
+            users={users}
+            loadingUsers={loadingUsers}
+            formatPattern={formatPattern}
           />
         </TabsContent>
       </Tabs>
