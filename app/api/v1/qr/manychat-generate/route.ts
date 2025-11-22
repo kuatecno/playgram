@@ -54,10 +54,19 @@ export async function POST(request: NextRequest) {
     // Get QR type
     const qrType = validated.qrType || 'promotion'
 
-    // Verify the tool exists and get its owner
+    // Verify the tool exists and get its owner + config
     const tool = await db.tool.findUnique({
       where: { id: validated.toolId },
-      select: { adminId: true, isActive: true, name: true },
+      select: {
+        adminId: true,
+        isActive: true,
+        name: true,
+        qrConfig: {
+          select: {
+            metadata: true,
+          },
+        },
+      },
     })
 
     if (!tool) {
@@ -112,19 +121,33 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Merge stored config metadata with request metadata
+    const storedMetadata = (tool.qrConfig?.metadata as any) || {}
+    const defaultCampaignName = storedMetadata.campaignName
+    const defaultQrType = storedMetadata.defaultQrType || qrType
+    const additionalFields = storedMetadata.additionalFields || {}
+
+    // Merge metadata: request metadata overrides stored defaults
+    const mergedMetadata = {
+      ...additionalFields, // Additional fields from config
+      ...(defaultCampaignName && !validated.metadata?.campaign && { campaign: defaultCampaignName }),
+      ...(storedMetadata.campaignDescription && { description: storedMetadata.campaignDescription }),
+      ...validated.metadata, // Request metadata takes priority
+    }
+
     // Generate label from metadata if provided
-    const labelFromMetadata = validated.metadata?.label as string | undefined
-    const label = labelFromMetadata || `${qrType}-${Date.now()}`
+    const labelFromMetadata = mergedMetadata.label as string | undefined
+    const label = labelFromMetadata || `${defaultQrType}-${Date.now()}`
 
     // Generate QR code
     const result = await qrCodeService.generateQRCode({
       adminId: tool.adminId,
       toolId: validated.toolId,
-      type: qrType,
+      type: validated.qrType || defaultQrType,
       label,
       userId: validated.userId,
       data: {
-        metadata: validated.metadata || {},
+        metadata: mergedMetadata,
       },
     })
 

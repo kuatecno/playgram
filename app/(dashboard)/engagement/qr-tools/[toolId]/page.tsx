@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { QrCodeManager } from './components/QrCodeManager'
 import CampaignConfig from './components/CampaignConfig'
+import ManyChatIntegration from './components/ManyChatIntegration'
 import {
   Tabs,
   TabsContent,
@@ -1182,6 +1183,7 @@ export default function QrToolConfigPage() {
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="security">Security & Routing</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+          <TabsTrigger value="manychat">ManyChat Setup</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -2253,6 +2255,10 @@ export default function QrToolConfigPage() {
 
         <TabsContent value="campaigns" className="space-y-6">
           <CampaignConfig toolId={toolId} />
+        </TabsContent>
+
+        <TabsContent value="manychat" className="space-y-6">
+          <ManyChatIntegration toolId={toolId} />
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-6">
