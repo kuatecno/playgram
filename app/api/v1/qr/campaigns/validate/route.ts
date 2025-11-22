@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
         maxCodesPerUser: qrCode.tool.qrConfig.maxCodesPerUser,
         rewardThreshold: qrCode.tool.qrConfig.rewardThreshold,
         autoResetOnReward: qrCode.tool.qrConfig.autoResetOnReward,
+        startingStreak: qrCode.tool.qrConfig.startingStreak,
         recurringConfig: qrCode.tool.qrConfig.recurringConfig as any,
       }
     )

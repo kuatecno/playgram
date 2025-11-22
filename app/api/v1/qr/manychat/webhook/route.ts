@@ -114,6 +114,7 @@ export async function POST(req: NextRequest) {
       rewardThreshold: config.rewardThreshold,
       maxCodesPerUser: config.maxCodesPerUser,
       autoResetOnReward: config.autoResetOnReward,
+      startingStreak: config.startingStreak,
       recurringConfig: config.recurringConfig as any,
     }
 

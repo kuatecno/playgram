@@ -73,6 +73,7 @@ export async function POST(
       maxCodesPerUser: tool.qrConfig.maxCodesPerUser,
       rewardThreshold: tool.qrConfig.rewardThreshold,
       autoResetOnReward: tool.qrConfig.autoResetOnReward,
+      startingStreak: tool.qrConfig.startingStreak,
       recurringConfig: tool.qrConfig.recurringConfig as any,
     })
 

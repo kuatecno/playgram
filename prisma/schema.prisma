@@ -22,6 +22,7 @@ model QRToolConfig {
   maxCodesPerUser      Int?     // Max codes per user (null = infinite)
   rewardThreshold      Int?     // Scans needed for reward (e.g., 7 for coffee card)
   autoResetOnReward    Boolean  @default(true)  // Reset progress after reward
+  startingStreak       Int      @default(0)     // Starting progress for new users
   recurringConfig      Json?    // Additional recurring settings
 
   createdAt            DateTime @default(now())

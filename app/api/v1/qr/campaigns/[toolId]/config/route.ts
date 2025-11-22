@@ -42,6 +42,7 @@ export async function GET(
         maxCodesPerUser: config.maxCodesPerUser,
         rewardThreshold: config.rewardThreshold,
         autoResetOnReward: config.autoResetOnReward,
+        startingStreak: config.startingStreak,
         recurringConfig: config.recurringConfig,
       },
     })
@@ -96,6 +97,7 @@ export async function PUT(
           maxCodesPerUser: body.maxCodesPerUser !== undefined ? body.maxCodesPerUser : undefined,
           rewardThreshold: body.rewardThreshold !== undefined ? body.rewardThreshold : undefined,
           autoResetOnReward: body.autoResetOnReward ?? undefined,
+          startingStreak: body.startingStreak !== undefined ? body.startingStreak : undefined,
           recurringConfig: body.recurringConfig ? (body.recurringConfig as any) : undefined,
         },
       })
@@ -107,6 +109,7 @@ export async function PUT(
           maxCodesPerUser: body.maxCodesPerUser,
           rewardThreshold: body.rewardThreshold,
           autoResetOnReward: body.autoResetOnReward ?? true,
+          startingStreak: body.startingStreak ?? 0,
           recurringConfig: body.recurringConfig ? (body.recurringConfig as any) : undefined,
         },
       })
@@ -119,6 +122,7 @@ export async function PUT(
         maxCodesPerUser: config.maxCodesPerUser,
         rewardThreshold: config.rewardThreshold,
         autoResetOnReward: config.autoResetOnReward,
+        startingStreak: config.startingStreak,
         recurringConfig: config.recurringConfig,
       },
     })

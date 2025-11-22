@@ -6,6 +6,7 @@ export interface RecurringCampaignSettings {
   maxCodesPerUser?: number | null
   rewardThreshold?: number | null
   autoResetOnReward: boolean
+  startingStreak?: number // Starting progress for new users
   recurringConfig?: {
     rewardActions?: {
       addTags?: string[] // ManyChat tag IDs to add on reward
@@ -27,6 +28,7 @@ export class QRCampaignService {
     settings: RecurringCampaignSettings
   ) {
     // Get or create campaign progress for this user
+    const startingProgress = settings.startingStreak || 0
     const progress = await db.qRCampaignProgress.upsert({
       where: {
         userId_toolId: { userId, toolId },
@@ -34,8 +36,8 @@ export class QRCampaignService {
       create: {
         userId,
         toolId,
-        totalScans: 0,
-        currentStreak: 0,
+        totalScans: startingProgress,
+        currentStreak: startingProgress,
         rewardsEarned: 0,
       },
       update: {},

@@ -27,6 +27,7 @@ export default function CampaignConfig({ toolId }: CampaignConfigProps) {
   const [rewardThreshold, setRewardThreshold] = useState('7')
   const [maxCodesPerUser, setMaxCodesPerUser] = useState('')
   const [autoResetOnReward, setAutoResetOnReward] = useState(true)
+  const [startingStreak, setStartingStreak] = useState('0')
   const [codePrefix, setCodePrefix] = useState('REWARD')
   const [rewardTags, setRewardTags] = useState('')
   const [rewardMessage, setRewardMessage] = useState('')
@@ -46,6 +47,7 @@ export default function CampaignConfig({ toolId }: CampaignConfigProps) {
         setRewardThreshold(data.data.rewardThreshold?.toString() || '7')
         setMaxCodesPerUser(data.data.maxCodesPerUser?.toString() || '')
         setAutoResetOnReward(data.data.autoResetOnReward ?? true)
+        setStartingStreak(data.data.startingStreak?.toString() || '0')
         setCodePrefix(data.data.recurringConfig?.codePrefix || 'REWARD')
         setRewardTags(data.data.recurringConfig?.rewardActions?.addTags?.join(', ') || '')
         setRewardMessage(data.data.recurringConfig?.rewardActions?.sendMessage || '')
@@ -82,6 +84,7 @@ export default function CampaignConfig({ toolId }: CampaignConfigProps) {
         rewardThreshold: rewardThreshold ? parseInt(rewardThreshold) : null,
         maxCodesPerUser: maxCodesPerUser ? parseInt(maxCodesPerUser) : null,
         autoResetOnReward,
+        startingStreak: startingStreak ? parseInt(startingStreak) : 0,
         recurringConfig: {
           codePrefix: codePrefix || 'REWARD',
           rewardActions: {
@@ -174,6 +177,25 @@ export default function CampaignConfig({ toolId }: CampaignConfigProps) {
                 />
                 <p className="text-sm text-muted-foreground">
                   After this many scans, the user earns a reward
+                </p>
+              </div>
+
+              {/* Starting Progress */}
+              <div className="space-y-2">
+                <Label htmlFor="startingStreak">
+                  Starting Progress
+                  <span className="ml-2 text-xs text-muted-foreground">(for users joining from other promos)</span>
+                </Label>
+                <Input
+                  id="startingStreak"
+                  type="number"
+                  min="0"
+                  value={startingStreak}
+                  onChange={(e) => setStartingStreak(e.target.value)}
+                  placeholder="0"
+                />
+                <p className="text-sm text-muted-foreground">
+                  New users will start with this many scans already counted (e.g., 3 if they earned coffees elsewhere)
                 </p>
               </div>
 
