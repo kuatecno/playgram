@@ -11,8 +11,7 @@ import { qrCampaignService } from '@/features/qr-codes/services/QRCampaignServic
  *   manychat_id: string,
  *   code: string,  // Current QR code to validate
  *   first_name?: string,
- *   last_name?: string,
- *   phone?: string
+ *   last_name?: string
  * }
  *
  * Returns:
@@ -32,7 +31,7 @@ import { qrCampaignService } from '@/features/qr-codes/services/QRCampaignServic
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { manychat_id, code, first_name, last_name, phone } = body
+    const { manychat_id, code, first_name, last_name } = body
 
     if (!manychat_id || !code) {
       return NextResponse.json(
@@ -55,8 +54,8 @@ export async function POST(req: NextRequest) {
       user = await db.user.create({
         data: {
           manychatId: manychat_id,
-          name: [first_name, last_name].filter(Boolean).join(' ') || 'Unknown',
-          phone: phone || undefined,
+          firstName: first_name || undefined,
+          lastName: last_name || undefined,
         },
       })
     }
