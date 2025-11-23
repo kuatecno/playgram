@@ -42,7 +42,7 @@ import {
   VALIDATION_OUTCOME_OPTIONS,
   FAILURE_REASON_OPTIONS,
 } from '@/features/qr-codes/types/unified-field-mapping'
-import {  QRFieldKey, AVAILABLE_QR_FIELDS } from '@/features/qr-codes/services/QRFieldMapping'
+import {  QRFieldKey, QR_AVAILABLE_FIELDS } from '@/features/qr-codes/services/QRFieldMapping'
 
 interface UnifiedFieldMappingProps {
   toolId: string
@@ -489,7 +489,7 @@ function MappingRow({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {AVAILABLE_QR_FIELDS.map(field => (
+                    {QR_AVAILABLE_FIELDS.map(field => (
                       <SelectItem key={field.key} value={field.key}>
                         {field.label} - {field.description}
                       </SelectItem>
